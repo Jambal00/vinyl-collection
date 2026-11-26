@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Vinyl Collection</title>
+<meta name="theme-color" content="#232026">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Vinyl">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Archivo:wght@400;500;600;700&display=swap">
+<style>
+/* Record-shop palette, shared with the story map: sleeve paper, vinyl black, centre-label red. */
+:root{
+  --bg:#f2f0ea; --surface:#fff; --ink:#1a1a1a; --muted:#66645c; --line:#d8d5c8;
+  --deck:#232026; --deck-ink:#fff; --accent:#d9452b; --accent-ink:#a3301b; --accent-soft:#fbe4de;
+  --ok:#2d6a2b; --ok-soft:#e1eedf; --warn:#7a5300; --warn-soft:#fdeec4; --blue:#1f4fb8; --blue-soft:#dde7fc;
+  --display:"Archivo Narrow","Arial Narrow",system-ui,sans-serif; --body:"Archivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --shadow:0 1px 0 rgba(26,26,26,.05),0 2px 8px rgba(26,26,26,.08);
+  --top:env(safe-area-inset-top,0px); --bot:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#141416; --surface:#222226; --ink:#ecebe6; --muted:#a3a198; --line:#34343a;
+  --deck:#0d0c0f; --accent:#f07a5f; --accent-ink:#f5a08b; --accent-soft:#3c2220;
+  --ok:#93d391; --ok-soft:#1e3020; --warn:#f0cf80; --warn-soft:#3a3018; --blue:#a9c2ff; --blue-soft:#1c2840;
+  --shadow:0 1px 0 rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.3); color-scheme:dark}}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;padding-bottom:calc(76px + var(--bot))}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:1.08;text-wrap:balance}
+h2{font-size:28px}h3{font-size:20px}
+p{margin:0}
+a{color:var(--blue)}
+.muted{color:var(--muted)}.small{font-size:13px}
+.eyebrow{font:600 12px var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+header.top{position:sticky;top:0;z-index:20;background:var(--deck);color:var(--deck-ink);padding:calc(10px + var(--top)) 16px 10px;display:flex;align-items:center;gap:12px}
+header.top h1{font-size:24px;flex:1;display:flex;align-items:center;gap:10px}
+.disc{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle,var(--accent) 0 28%,#111 29% 33%,#2b2b2b 34% 52%,#111 53% 56%,#2b2b2b 57% 100%);flex:none}
+.sync{font:600 12px var(--body);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:3px 9px;white-space:nowrap}
+.sync.pending{border-color:#f0cf80;color:#f0cf80}
+.iconbtn{background:none;border:0;color:inherit;min-width:44px;min-height:44px;border-radius:8px;cursor:pointer;font-size:20px}
+main{max-width:980px;margin:0 auto;padding:16px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:var(--bot)}
+nav.tabs button{background:none;border:0;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:600 12px var(--body);color:var(--muted);cursor:pointer}
+nav.tabs button .i{font-size:20px;line-height:1}
+nav.tabs button[aria-current="page"]{color:var(--accent-ink)}
+nav.tabs button.add .i{background:var(--accent);color:#fff;border-radius:50%;width:38px;height:38px;display:grid;place-items:center;font-size:24px;margin-top:-6px;box-shadow:var(--shadow)}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.dark{background:var(--deck);border-color:var(--deck);color:#fff}
+.btn.ghost{background:none}
+.btn.small{min-height:36px;padding:6px 12px;font-size:14px}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.block{width:100%}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input[type=text],input[type=email],input[type=search],input[type=number],input[type=password],select,textarea{width:100%;min-height:46px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:16px}
+textarea{min-height:80px}
+label.f{display:flex;flex-direction:column;gap:6px;font:600 14px var(--body)}
+label.chk{display:flex;gap:10px;align-items:center;min-height:44px;font-weight:500}
+label.chk input{width:22px;height:22px;accent-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.seg button{border:0;background:none;min-height:40px;border-radius:9px;font-weight:600;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--deck);color:#fff}
+.toolbar{display:grid;grid-template-columns:1fr auto;gap:8px}
+.filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media(max-width:520px){.filters{grid-template-columns:1fr 1fr}.filters select:last-child{grid-column:1/-1}}
+.covers{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+@media(max-width:420px){.covers{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}}
+.tile{background:none;border:0;padding:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.sleeve{position:relative;aspect-ratio:1;border-radius:4px;overflow:hidden;background:var(--deck);box-shadow:var(--shadow)}
+.sleeve img{width:100%;height:100%;object-fit:cover;display:block}
+.sleeve .ph{position:absolute;inset:0;display:grid;place-items:center;padding:12px;text-align:center;color:#fff;font:700 15px/1.15 var(--display);background:radial-gradient(circle at 50% 50%,var(--accent) 0 14%,#151515 15% 17%,#2a2a2a 18% 40%,#151515 41% 42%,#2a2a2a 43% 70%,#232026 71%)}
+.sleeve .ph span{background:rgba(0,0,0,.6);padding:4px 6px;border-radius:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;max-width:100%}
+.spine .sleeve .ph span,.cand .sleeve .ph span{display:none}
+.badge{position:absolute;top:6px;left:6px;font:700 11px var(--body);letter-spacing:.04em;padding:3px 7px;border-radius:99px;background:var(--warn-soft);color:var(--warn)}
+.tile b{font:700 16px/1.15 var(--display)}
+.tile span{font-size:13px;color:var(--muted);line-height:1.25}
+.empty{text-align:center;padding:40px 16px;display:flex;flex-direction:column;gap:12px;align-items:center}
+.empty .bigdisc{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle,var(--accent) 0 18%,#111 19% 22%,#2b2b2b 23% 45%,#111 46% 48%,#2b2b2b 49% 100%);box-shadow:var(--shadow)}
+.list{display:flex;flex-direction:column;gap:10px}
+.cand{display:grid;grid-template-columns:72px 1fr;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;cursor:pointer;text-align:left;width:100%}
+.cand .sleeve{width:72px}
+.cand b{font:700 17px/1.15 var(--display);display:block}
+.facts{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:4px}
+.fact{font-size:12.5px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;white-space:nowrap;color:var(--muted)}
+.fact.key{color:var(--ink);border-color:var(--ink);font-weight:600}
+.src{font:700 10.5px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.notice{border-radius:10px;padding:12px 14px;font-size:14.5px}
+.notice.warn{background:var(--warn-soft);color:var(--warn)}
+.notice.ok{background:var(--ok-soft);color:var(--ok)}
+.notice.err{background:var(--accent-soft);color:var(--accent-ink)}
+.notice.info{background:var(--blue-soft);color:var(--blue)}
+.notice b{color:inherit}
+details.help{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+details.help summary{cursor:pointer;font-weight:600;min-height:32px;display:flex;align-items:center}
+details.help ol{margin:8px 0 4px;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:14.5px}
+.sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:720px;max-height:92vh;overflow:auto;border-radius:18px 18px 0 0;padding:16px 16px calc(20px + var(--bot));display:flex;flex-direction:column;gap:14px}
+@media(min-width:760px){.sheet-bg{align-items:center}.sheet{border-radius:18px;max-height:88vh}}
+.sheet-head{display:flex;align-items:start;gap:10px}
+.sheet-head h2{flex:1}
+.detail{display:grid;grid-template-columns:minmax(0,220px) minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:560px){.detail{grid-template-columns:1fr}.detail .sleeve{max-width:300px;width:100%;margin:0 auto}}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:14.5px}
+.kv dt{color:var(--muted);font-weight:600}
+.kv dd{margin:0}
+.side{display:flex;flex-direction:column;gap:2px}
+.side h4{margin:10px 0 4px;font:700 13px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.trk{display:grid;grid-template-columns:36px 1fr auto;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px}
+.trk .n{color:var(--muted);font-variant-numeric:tabular-nums}
+.trk .t{color:var(--muted);font-variant-numeric:tabular-nums}
+.spot{display:flex;flex-direction:column;gap:4px;background:var(--deck);color:#fff;border-radius:12px;padding:14px 16px}
+.spot .big{font:700 30px/1 var(--display)}
+.spot .between{font-size:14.5px;opacity:.9}
+.shelf-sec{display:flex;flex-direction:column;gap:6px}
+.shelf-sec h3{position:sticky;top:calc(64px + var(--top));background:var(--bg);padding:8px 0;z-index:2;display:flex;justify-content:space-between;align-items:baseline}
+.spine{display:grid;grid-template-columns:44px 40px 1fr;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--deck);border-radius:6px;padding:6px 10px;cursor:pointer;text-align:left;width:100%}
+.spine .pos{font:700 18px var(--display);color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
+.spine .sleeve{width:40px}
+.spine b{font:700 15px/1.15 var(--display);display:block}
+.spine span{font-size:13px;color:var(--muted)}
+.spine.hit{border-left-color:var(--accent);background:var(--accent-soft)}
+.store-item{display:grid;grid-template-columns:110px 1fr;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;align-items:center}
+.store-item b{font:700 20px/1.1 var(--display);display:block}
+.scanbox{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:4/3}
+.scanbox video{width:100%;height:100%;object-fit:cover;display:block}
+.scanbox .aim{position:absolute;left:10%;right:10%;top:38%;height:24%;border:3px solid var(--accent);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.35)}
+.result-big{border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:6px;text-align:center}
+.result-big b{font:700 26px/1.1 var(--display)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--bot));z-index:60;background:var(--deck);color:#fff;border-radius:12px;padding:12px 16px;max-width:min(92vw,520px);box-shadow:var(--shadow);font-size:15px}
+.spinner{width:22px;height:22px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spinner{animation-duration:3s}}
+.hidden{display:none!important}
+.count{font-variant-numeric:tabular-nums}
+.ruleRow{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:center}
+.ruleRow span{font:700 18px var(--display);color:var(--muted);text-align:center}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1><span class="disc" aria-hidden="true"></span>Vinyl</h1>
+  <span class="sync hidden" id="sync"></span>
+  <button class="iconbtn" id="btnSettings" aria-label="Settings" title="Settings">⚙︎</button>
+</header>
+<main id="view"></main>
+<nav class="tabs hidden" id="tabs" aria-label="Sections">
+  <button data-tab="collection"><span class="i">▦</span>Collection</button>
+  <button data-tab="wishlist"><span class="i">♡</span>Wishlist</button>
+  <button data-tab="add" class="add"><span class="i">+</span>Add</button>
+  <button data-tab="shelf"><span class="i">▥</span>Shelf</button>
+  <button data-tab="check"><span class="i">⌕</span>Check</button>
+</nav>
+<div id="sheetRoot"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+{
+'use strict';
+/* ---------- setup ---------- */
+const SUPABASE_URL='https://brgtnbkazftmetedbyup.supabase.co';
+const SUPABASE_KEY='sb_publishable_jrLTgVCk7bOdRWKftgI87Q_sBJAcYjJ';
+const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'vc-auth'}}):null;
+const $=s=>document.querySelector(s);
+const view=$('#view'),sheetRoot=$('#sheetRoot');
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl=u=>/^https:\/\//.test(u||'')?u:'';
+const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const uuid=()=>(crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16)}));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const GRADES=['','M','NM','VG+','VG','G+','G','F','P'];
+const S={user:null,records:LS.get('vc-records',[]),settings:LS.get('vc-settings',{shelf_rule:{order:['artist','year'],ignoreThe:true,variousSection:true},discogs_token:''}),queue:LS.get('vc-queue',[]),tab:LS.get('vc-tab','collection'),filters:{q:'',genre:'',decade:'',sort:'artist'},wq:'',shelfQ:'',focusId:null};
+
+/* ---------- storage & sync (works offline; queues writes) ---------- */
+function persist(){LS.set('vc-records',S.records);LS.set('vc-settings',S.settings);LS.set('vc-queue',S.queue);renderSync()}
+function renderSync(){const el=$('#sync');if(!S.user){el.classList.add('hidden');return}el.classList.remove('hidden');
+  if(S.queue.length){el.textContent=S.queue.length+' to sync';el.className='sync pending';el.title='Saved on this phone; will sync when you are back online'}
+  else{el.textContent='Saved';el.className='sync';el.title='Saved to your account'}}
+const COLS=['id','status','title','artist','year','country','label','catno','barcode','format','genres','styles','cover_url','cover_alt_url','tracks','source','source_id','release_group_id','pressing_confirmed','any_pressing','gift_pick','condition_media','condition_sleeve','bought_where','price_paid','notes','compilation','created_at'];
+function rowOf(r){const o={};COLS.forEach(k=>{if(r[k]!==undefined)o[k]=r[k]});if(o.price_paid==='')o.price_paid=null;return o}
+async function flush(){
+  if(!sb||!S.user||!S.queue.length||!navigator.onLine)return;
+  while(S.queue.length){
+    const op=S.queue[0];
+    try{
+      let res;
+      if(op.t==='upsert')res=await sb.from('vc_records').upsert(rowOf(op.r));
+      else if(op.t==='delete')res=await sb.from('vc_records').delete().eq('id',op.id);
+      else if(op.t==='settings')res=await sb.from('vc_settings').upsert({owner:S.user.id,shelf_rule:op.s.shelf_rule,discogs_token:op.s.discogs_token||null});
+      if(res.error)throw res.error;
+      S.queue.shift();persist();
+    }catch(e){console.warn('sync failed',e);renderSync();return}
+  }
+}
+function saveRecord(r){const i=S.records.findIndex(x=>x.id===r.id);if(i>=0)S.records[i]=r;else S.records.push(r);S.queue=S.queue.filter(q=>!(q.t==='upsert'&&q.r.id===r.id));S.queue.push({t:'upsert',r});persist();flush()}
+function deleteRecord(id){S.records=S.records.filter(r=>r.id!==id);S.queue=S.queue.filter(q=>!(q.t==='upsert'&&q.r.id===id));S.queue.push({t:'delete',id});persist();flush()}
+function saveSettings(){S.queue=S.queue.filter(q=>q.t!=='settings');S.queue.push({t:'settings',s:S.settings});persist();flush()}
+async function pull(){
+  if(!sb||!S.user||!navigator.onLine)return;
+  await flush();
+  if(S.queue.length)return;
+  const [a,b]=await Promise.all([sb.from('vc_records').select('*').order('created_at'),sb.from('vc_settings').select('*').maybeSingle()]);
+  if(!a.error){S.records=a.data||[]}
+  if(!b.error&&b.data){S.settings={shelf_rule:b.data.shelf_rule||S.settings.shelf_rule,discogs_token:b.data.discogs_token||''}}
+  persist();render();
+}
+window.addEventListener('online',()=>{flush().then(pull)});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')flush()});
+
+/* ---------- music catalogs ---------- */
+let mbLast=0;
+async function mb(path){
+  const wait=mbLast+1100-Date.now();if(wait>0)await sleep(wait);mbLast=Date.now();
+  const url='https://musicbrainz.org/ws/2/'+path+(path.includes('?')?'&':'?')+'fmt=json';
+  let r;try{r=await fetch(url,{headers:{Accept:'application/json'}})}catch(e){throw new Error('offline')}
+  if(r.status===503){await sleep(1500);mbLast=Date.now();r=await fetch(url,{headers:{Accept:'application/json'}})}
+  if(!r.ok)throw new Error('MusicBrainz said '+r.status);
+  return r.json();
+}
+async function dg(path){
+  const t=S.settings.discogs_token;if(!t)return null;
+  const url='https://api.discogs.com/'+path+(path.includes('?')?'&':'?')+'token='+encodeURIComponent(t);
+  let r;try{r=await fetch(url)}catch(e){throw new Error('offline')}
+  if(r.status===401)throw new Error('Discogs token was refused. Check it in Settings.');
+  if(!r.ok)throw new Error('Discogs said '+r.status);
+  return r.json();
+}
+const credit=ac=>(ac||[]).map(a=>(a.name||a.artist?.name||'')+(a.joinphrase||'')).join('').trim();
+const dgName=n=>String(n||'').replace(/\s\(\d+\)$/,'').replace(/\*$/,'');
+const cap=s=>String(s||'').replace(/\b\w/g,c=>c.toUpperCase());
+function mbCand(r){
+  const li=(r['label-info']||[])[0]||{};const rg=r['release-group']||{};
+  return {source:'musicbrainz',id:r.id,rgid:rg.id,title:r.title,artist:credit(r['artist-credit']),year:parseInt((r.date||'').slice(0,4))||null,country:r.country||'',label:li.label?.name||'',catno:li['catalog-number']||'',barcode:r.barcode||'',
+    format:[...new Set((r.media||[]).map(m=>m.format).filter(Boolean))].join(' + ')||'',tracks:(r.media||[]).reduce((n,m)=>n+(m['track-count']||0),0),
+    thumb:'https://coverartarchive.org/release/'+r.id+'/front-250',thumbAlt:rg.id?'https://coverartarchive.org/release-group/'+rg.id+'/front-250':'',
+    compilation:(rg['secondary-types']||[]).some(t=>/compilation|soundtrack/i.test(t))||/^various artists$/i.test(credit(r['artist-credit']))}
+}
+function dgCand(r){
+  const parts=String(r.title||'').split(' - ');const artist=parts.length>1?parts.shift():'';
+  return {source:'discogs',id:String(r.id),title:parts.join(' - ')||r.title,artist:dgName(artist),year:parseInt(r.year)||null,country:r.country||'',label:(r.label||[])[0]||'',catno:r.catno||'',barcode:(r.barcode||[])[0]||'',
+    format:(r.format||[]).join(', '),thumb:/spacer/.test(r.cover_image||'')?'':(r.cover_image||r.thumb||''),thumbAlt:'',compilation:(r.format||[]).some(f=>/compilation/i.test(f))||/^various$/i.test(artist)}
+}
+function barcodeVariants(code){const c=String(code).replace(/\D/g,'');const v=new Set([c]);if(c.length===12)v.add('0'+c);if(c.length===13&&c[0]==='0')v.add(c.slice(1));return [...v].filter(Boolean)}
+async function searchBarcode(code){
+  const out=[];const errs=[];
+  try{const q=barcodeVariants(code).map(b=>'barcode:'+b).join(' OR ');const j=await mb('release/?query='+encodeURIComponent(q)+'&limit=40');out.push(...(j.releases||[]).map(mbCand))}catch(e){errs.push(e.message)}
+  if(!out.length&&S.settings.discogs_token){try{for(const b of barcodeVariants(code)){const j=await dg('database/search?type=release&per_page=40&barcode='+encodeURIComponent(b));if(j&&j.results&&j.results.length){out.push(...j.results.map(dgCand));break}}}catch(e){errs.push(e.message)}}
+  return {cands:out,errs};
+}
+async function searchText(artist,title){
+  const out=[];const errs=[];const qv=s=>'"'+String(s).replace(/["\\]/g,' ').trim()+'"';
+  const parts=[];if(artist)parts.push('artist:'+qv(artist));if(title)parts.push('release:'+qv(title));
+  if(parts.length){try{const j=await mb('release/?query='+encodeURIComponent(parts.join(' AND '))+'&limit=40');out.push(...(j.releases||[]).map(mbCand))}catch(e){errs.push(e.message)}}
+  if(S.settings.discogs_token){try{let p='database/search?type=release&per_page=25';if(artist)p+='&artist='+encodeURIComponent(artist);if(title)p+='&release_title='+encodeURIComponent(title);const j=await dg(p);if(j)out.push(...(j.results||[]).map(dgCand))}catch(e){errs.push(e.message)}}
+  return {cands:out,errs};
+}
+function sideOf(num,medPos,nMed){const m=/^([A-Z]{1,2})\s?\d*/i.exec(num||'');if(m&&isNaN(num))return 'Side '+m[1].toUpperCase();return nMed>1?'Disc '+medPos:''}
+function fmtLen(ms){if(!ms)return '';const s=Math.round(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+async function fetchDetails(c){
+  if(c.source==='musicbrainz'){
+    const r=await mb('release/'+c.id+'?inc=recordings+artist-credits+labels+release-groups+genres');
+    let genres=(r.genres||[]).sort((a,b)=>b.count-a.count).map(g=>cap(g.name));
+    const rg=r['release-group']||{};
+    if(!genres.length&&rg.id){try{const g=await mb('release-group/'+rg.id+'?inc=genres');genres=(g.genres||[]).sort((a,b)=>b.count-a.count).map(x=>cap(x.name))}catch(e){}}
+    const media=r.media||[];
+    const tracks=[];media.forEach(m=>(m.tracks||[]).forEach(t=>tracks.push({pos:t.number||String(t.position),title:t.title,len:fmtLen(t.length),side:sideOf(t.number,m.position,media.length)})));
+    const li=(r['label-info']||[])[0]||{};
+    return {title:r.title,artist:credit(r['artist-credit']),year:parseInt((r.date||'').slice(0,4))||c.year,country:r.country||c.country,label:li.label?.name||c.label,catno:li['catalog-number']||c.catno,barcode:r.barcode||c.barcode,
+      format:[...new Set(media.map(m=>m.format).filter(Boolean))].join(' + ')||c.format,genres:genres.slice(0,4),styles:[],tracks,source:'musicbrainz',source_id:r.id,release_group_id:rg.id||null,
+      cover_url:'https://coverartarchive.org/release/'+r.id+'/front-500',cover_alt_url:rg.id?'https://coverartarchive.org/release-group/'+rg.id+'/front-500':null,
+      compilation:(rg['secondary-types']||[]).some(t=>/compilation|soundtrack/i.test(t))||/^various artists$/i.test(credit(r['artist-credit']))};
+  }
+  const r=await dg('releases/'+c.id);
+  const tracks=(r.tracklist||[]).filter(t=>t.type_==='track').map(t=>({pos:t.position||'',title:t.title,len:t.duration||'',side:sideOf(t.position,1,1)}));
+  const artist=(r.artists||[]).map(a=>dgName(a.name)+(a.join?(' '+a.join+' '):'')).join('').replace(/\s+/g,' ').trim();
+  const img=(r.images||[]).find(i=>i.type==='primary')||(r.images||[])[0];
+  return {title:r.title,artist:artist||c.artist,year:r.year||c.year,country:r.country||c.country,label:(r.labels||[])[0]?.name||c.label,catno:(r.labels||[])[0]?.catno||c.catno,
+    barcode:((r.identifiers||[]).find(i=>i.type==='Barcode')||{}).value||c.barcode,format:(r.formats||[]).map(f=>[f.name,...(f.descriptions||[])].join(', ')).join(' + ')||c.format,
+    genres:(r.genres||[]).slice(0,3),styles:(r.styles||[]).slice(0,4),tracks,source:'discogs',source_id:String(r.id),release_group_id:r.master_id?String(r.master_id):null,
+    cover_url:img?.uri||c.thumb||null,cover_alt_url:null,compilation:(r.formats||[]).some(f=>(f.descriptions||[]).some(d=>/compilation/i.test(d)))||/^various$/i.test(artist)};
+}
+function sourceLink(r){if(r.source==='musicbrainz'&&r.source_id)return 'https://musicbrainz.org/release/'+r.source_id;if(r.source==='discogs'&&r.source_id)return 'https://www.discogs.com/release/'+r.source_id;return ''}
+
+/* ---------- shelf order ---------- */
+const KEYS={artist:'Artist',genre:'Genre',decade:'Era (decade)',year:'Year',title:'Title',label:'Label'};
+const VARIOUS='Soundtracks & compilations';
+function artistKey(a,rule){let s=String(a||'').trim().toLowerCase();if(rule.ignoreThe)s=s.replace(/^(the|a|an)\s+/,'');return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
+const decadeOf=r=>r.year?Math.floor(r.year/10)*10+'s':'Unknown era';
+function sortParts(r,rule){
+  const various=rule.variousSection&&r.compilation;
+  const parts=[various?1:0];
+  for(const k of rule.order){
+    if(k==='artist')parts.push(various?'':artistKey(r.artist,rule));
+    else if(k==='genre')parts.push(various?'':((r.genres||[])[0]||'zzzz unsorted').toLowerCase());
+    else if(k==='decade')parts.push(r.year?String(Math.floor(r.year/10)*10):'9999');
+    else if(k==='year')parts.push(r.year?String(r.year):'9999');
+    else if(k==='title')parts.push(String(r.title||'').toLowerCase().replace(/^(the|a|an)\s+/,''));
+    else if(k==='label')parts.push(String(r.label||'').toLowerCase());
+  }
+  parts.push(String(r.title||'').toLowerCase());parts.push(r.id||'');
+  return parts;
+}
+function cmpParts(a,b){for(let i=0;i<a.length;i++){if(a[i]===b[i])continue;if(typeof a[i]==='number')return a[i]-b[i];return String(a[i]).localeCompare(String(b[i]),undefined,{numeric:true})}return 0}
+function sectionOf(r,rule){
+  if(rule.variousSection&&r.compilation)return VARIOUS;
+  const k=rule.order[0];
+  if(k==='genre')return (r.genres||[])[0]||'Unsorted';
+  if(k==='decade')return decadeOf(r);
+  if(k==='label')return r.label||'No label';
+  if(k==='artist'){const c=artistKey(r.artist,rule).charAt(0).toUpperCase();return /[A-Z]/.test(c)?c:'#'}
+  if(k==='title'){const c=String(r.title||'').replace(/^(the|a|an)\s+/i,'').charAt(0).toUpperCase();return /[A-Z]/.test(c)?c:'#'}
+  return decadeOf(r);
+}
+function shelf(){const rule=S.settings.shelf_rule;return S.records.filter(r=>r.status==='owned').map(r=>({r,p:sortParts(r,rule)})).sort((a,b)=>cmpParts(a.p,b.p)).map(x=>x.r)}
+function spotOf(id){
+  const list=shelf();const i=list.findIndex(r=>r.id===id);if(i<0)return null;
+  const rule=S.settings.shelf_rule;const sec=sectionOf(list[i],rule);
+  const inSec=list.filter(r=>sectionOf(r,rule)===sec);
+  return {pos:i+1,total:list.length,section:sec,secPos:inSec.findIndex(r=>r.id===id)+1,secTotal:inSec.length,before:list[i-1]||null,after:list[i+1]||null};
+}
+function ruleText(rule){return rule.order.map(k=>KEYS[k]).join(' → ')+(rule.ignoreThe?' · ignoring “The”':'')+(rule.variousSection?' · '+VARIOUS.toLowerCase()+' at the end':'')}
+
+/* ---------- small UI helpers ---------- */
+function sleeve(r,size){
+  const src=safeUrl(size==='lg'?r.cover_url:(r.thumb||r.cover_url));const alt=safeUrl(size==='lg'?r.cover_alt_url:(r.thumbAlt||r.cover_alt_url));
+  return '<div class="sleeve">'+(src?'<img loading="lazy" alt="" src="'+esc(src)+'" data-alt="'+esc(alt)+'" onerror="vcImgFail(this)">':'')+'<div class="ph'+(src?' hidden':'')+'"><span>'+esc(r.title||'?')+'</span></div>'+(r.status==='owned'&&r.pressing_confirmed===false?'<span class="badge">Pressing?</span>':'')+'</div>';
+}
+window.vcImgFail=function(img){const a=img.getAttribute('data-alt');if(a&&img.src!==a){img.removeAttribute('data-alt');img.src=a;return}const ph=img.parentNode&&img.parentNode.querySelector('.ph');img.remove();if(ph)ph.classList.remove('hidden')};
+document.addEventListener('error',e=>{const t=e.target;if(t&&t.tagName==='IMG'&&t.hasAttribute('onerror')===false&&t.closest('.sleeve'))window.vcImgFail(t)},true);
+let toastT;function toast(html,ms){clearTimeout(toastT);let el=$('.toast');if(!el){el=document.createElement('div');el.className='toast';el.setAttribute('role','status');document.body.appendChild(el)}el.innerHTML=html;toastT=setTimeout(()=>el.remove(),ms||4500)}
+function openSheet(html,onClose){
+  closeSheet();const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML='<div class="sheet" role="dialog" aria-modal="true">'+html+'</div>';
+  bg.addEventListener('click',e=>{if(e.target===bg)closeSheet()});sheetRoot.appendChild(bg);sheetRoot._onClose=onClose;
+  const f=bg.querySelector('[autofocus]');if(f)setTimeout(()=>f.focus(),50);return bg.querySelector('.sheet');
+}
+function closeSheet(){stopScan();sheetRoot.innerHTML='';if(sheetRoot._onClose){const f=sheetRoot._onClose;sheetRoot._onClose=null;f()}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&sheetRoot.firstChild)closeSheet()});
+const facts=c=>[c.year&&['Year',c.year],c.country&&['Country',c.country],c.label&&['Label',c.label],c.catno&&['Cat #',c.catno],c.format&&['Format',c.format],c.barcode&&['Barcode',c.barcode]].filter(Boolean);
+function factChips(c){return '<div class="facts">'+facts(c).map(([k,v])=>'<span class="fact'+(k==='Cat #'||k==='Country'?' key':'')+'">'+esc(k==='Year'||k==='Country'?v:(k+' '+v))+'</span>').join('')+'</div>'}
+const genresAll=()=>[...new Set(S.records.filter(r=>r.status==='owned').flatMap(r=>r.genres||[]))].sort();
+const decadesAll=()=>[...new Set(S.records.filter(r=>r.status==='owned'&&r.year).map(decadeOf))].sort();
+function ownedMatch(rec){return S.records.filter(r=>r.status==='owned'&&r.id!==rec.id&&((rec.source_id&&r.source_id===rec.source_id)||(artistKey(r.artist,{ignoreThe:true})===artistKey(rec.artist,{ignoreThe:true})&&String(r.title).toLowerCase()===String(rec.title).toLowerCase())))}
+function findByBarcode(code){const v=barcodeVariants(code);return S.records.filter(r=>r.barcode&&v.includes(String(r.barcode).replace(/\D/g,'')))}
+
+/* ---------- barcode scanning ---------- */
+let scan=null;
+function stopScan(){if(!scan)return;try{scan.stop()}catch(e){}scan=null}
+function loadZXing(){return new Promise((res,rej)=>{if(window.ZXing)return res(window.ZXing);const s=document.createElement('script');s.src='https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js';s.onload=()=>res(window.ZXing);s.onerror=()=>rej(new Error('Could not load the scanner'));document.head.appendChild(s)})}
+async function startScan(video,onCode){
+  stopScan();
+  if('BarcodeDetector' in window){
+    try{
+      const det=new BarcodeDetector({formats:['ean_13','upc_a','upc_e','ean_8']});
+      const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+      video.srcObject=stream;video.setAttribute('playsinline','');await video.play();
+      let alive=true;scan={stop(){alive=false;stream.getTracks().forEach(t=>t.stop())}};
+      (async function loop(){while(alive){try{const codes=await det.detect(video);if(codes.length){const v=codes[0].rawValue;stopScan();onCode(v);return}}catch(e){}await sleep(250)}})();
+      return;
+    }catch(e){if(e.name==='NotAllowedError')throw new Error('Camera permission was turned down. You can type the barcode instead.')}
+  }
+  const ZX=await loadZXing();
+  const hints=new Map();hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS,[ZX.BarcodeFormat.EAN_13,ZX.BarcodeFormat.UPC_A,ZX.BarcodeFormat.UPC_E,ZX.BarcodeFormat.EAN_8]);
+  const reader=new ZX.BrowserMultiFormatReader(hints);
+  video.setAttribute('playsinline','');
+  scan={stop(){reader.reset()}};
+  await reader.decodeFromConstraints({video:{facingMode:'environment'},audio:false},video,(result)=>{if(result){const v=result.getText();stopScan();onCode(v)}});
+}
+async function decodePhoto(file){
+  if('BarcodeDetector' in window){try{const det=new BarcodeDetector({formats:['ean_13','upc_a','upc_e','ean_8']});const bmp=await createImageBitmap(file);const c=await det.detect(bmp);if(c.length)return c[0].rawValue}catch(e){}}
+  const ZX=await loadZXing();const reader=new ZX.BrowserMultiFormatReader();const url=URL.createObjectURL(file);
+  try{const r=await reader.decodeFromImageUrl(url);return r.getText()}catch(e){return null}finally{URL.revokeObjectURL(url)}
+}
+function scannerHTML(id){return '<div class="scanbox"><video id="'+id+'" muted playsinline></video><div class="aim"></div></div><p class="small muted">Hold the barcode inside the frame. If the camera won’t focus, take a photo instead.</p>'}
+
+/* ---------- views ---------- */
+function setTab(t){S.tab=t;LS.set('vc-tab',t);render();window.scrollTo(0,0)}
+document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
+$('#btnSettings').addEventListener('click',()=>{if(S.user)openSettings()});
+function render(){
+  if(!S.user){renderAuth();return}
+  $('#tabs').classList.remove('hidden');
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===S.tab?'page':'false'));
+  ({collection:renderCollection,wishlist:renderWishlist,add:renderAdd,shelf:renderShelf,check:renderCheck}[S.tab]||renderCollection)();
+  renderSync();
+}
+
+/* auth */
+function renderAuth(step,email,msg){
+  $('#tabs').classList.add('hidden');
+  view.innerHTML='<div class="stack" style="max-width:440px;margin:24px auto">'+
+    '<div class="empty"><div class="bigdisc"></div><h2>Your records, in your pocket</h2><p class="muted">Catalog what you own, keep a wishlist for record stores, and always know where a record goes on the shelf.</p></div>'+
+    (msg?'<div class="notice '+(msg.err?'err':'info')+'">'+esc(msg.t)+'</div>':'')+
+    (step==='code'?
+      '<form class="card stack" id="fCode"><p>We sent a sign-in code to <b>'+esc(email)+'</b>. It may land in junk.</p><label class="f">Code<input id="code" inputmode="numeric" autocomplete="one-time-code" autofocus></label><button class="btn primary block">Sign in</button><button type="button" class="btn ghost block" id="back">Use a different email</button></form>':
+      '<form class="card stack" id="fEmail"><label class="f">Email<input type="email" id="email" autocomplete="email" required value="'+esc(LS.get('vc-email',''))+'" autofocus></label><button class="btn primary block">Send me a code</button><p class="small muted">Same sign-in as Bowling Bro’ if you use the same email.</p></form>')+
+    '</div>';
+  if(step==='code'){
+    $('#back').onclick=()=>renderAuth();
+    $('#fCode').onsubmit=async e=>{e.preventDefault();const token=$('#code').value.trim();const {data,error}=await sb.auth.verifyOtp({email,token,type:'email'});if(error)return renderAuth('code',email,{err:1,t:'That code didn’t work: '+error.message});S.user=data.user;afterSignIn()};
+  }else{
+    $('#fEmail').onsubmit=async e=>{e.preventDefault();const em=$('#email').value.trim();LS.set('vc-email',em);if(!sb)return renderAuth('',em,{err:1,t:'Can’t reach the account service right now. Try again when you have a connection.'});const {error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:true}});if(error)return renderAuth('',em,{err:1,t:error.message});renderAuth('code',em)};
+  }
+}
+async function afterSignIn(){render();await pull()}
+
+/* collection */
+function renderCollection(){
+  const f=S.filters;const owned=S.records.filter(r=>r.status==='owned');
+  if(!owned.length){view.innerHTML='<div class="empty"><div class="bigdisc"></div><h2>Start with the first record</h2><p class="muted">Scan the barcode on the back, or search by artist and title.</p><button class="btn primary" id="go">+ Add a record</button></div>';$('#go').onclick=()=>setTab('add');return}
+  let list=owned.filter(r=>(!f.genre||(r.genres||[]).includes(f.genre))&&(!f.decade||decadeOf(r)===f.decade)&&(!f.q||(r.title+' '+r.artist+' '+(r.label||'')).toLowerCase().includes(f.q.toLowerCase())));
+  if(f.sort==='shelf'){const sh=shelf();list.sort((a,b)=>sh.indexOf(a)-sh.indexOf(b))}
+  else if(f.sort==='year')list.sort((a,b)=>(a.year||9999)-(b.year||9999)||artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true})));
+  else if(f.sort==='recent')list.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
+  else list.sort((a,b)=>artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true}))||(a.year||0)-(b.year||0));
+  const unconf=owned.filter(r=>r.pressing_confirmed===false).length;
+  view.innerHTML='<div class="stack">'+
+    '<div class="row" style="justify-content:space-between;align-items:baseline"><h2>Collection</h2><span class="muted count">'+list.length+(list.length!==owned.length?' of '+owned.length:'')+' records</span></div>'+
+    '<input type="search" id="q" placeholder="Search artist, title or label" value="'+esc(f.q)+'" aria-label="Search the collection">'+
+    '<div class="filters"><select id="fg" aria-label="Genre"><option value="">All genres</option>'+genresAll().map(g=>'<option'+(g===f.genre?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select>'+
+    '<select id="fd" aria-label="Era"><option value="">All eras</option>'+decadesAll().map(d=>'<option'+(d===f.decade?' selected':'')+'>'+esc(d)+'</option>').join('')+'</select>'+
+    '<select id="fs" aria-label="Sort">'+[['artist','Sort: artist'],['year','Sort: year'],['recent','Sort: recently added'],['shelf','Sort: shelf order']].map(o=>'<option value="'+o[0]+'"'+(o[0]===f.sort?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'+
+    (unconf?'<div class="notice warn">'+unconf+' record'+(unconf>1?'s have':' has')+' a pressing still to confirm. Look for the “Pressing?” tag.</div>':'')+
+    (list.length?'<div class="covers">'+list.map(r=>'<button class="tile" data-id="'+esc(r.id)+'">'+sleeve(r)+'<b>'+esc(r.title)+'</b><span>'+esc(r.artist)+(r.year?' · '+r.year:'')+'</span></button>').join('')+'</div>':'<p class="muted">Nothing matches those filters.</p>')+
+    '</div>';
+  $('#q').oninput=e=>{f.q=e.target.value;const pos=e.target.selectionStart;renderCollection();const q=$('#q');q.focus();q.setSelectionRange(pos,pos)};
+  $('#fg').onchange=e=>{f.genre=e.target.value;renderCollection()};$('#fd').onchange=e=>{f.decade=e.target.value;renderCollection()};$('#fs').onchange=e=>{f.sort=e.target.value;renderCollection()};
+  view.querySelectorAll('.tile').forEach(t=>t.onclick=()=>openRecord(t.dataset.id));
+}
+
+/* record detail */
+function tracklistHTML(tracks){
+  if(!tracks||!tracks.length)return '<p class="muted small">No tracklist from the catalogs for this one.</p>';
+  const groups=[];tracks.forEach(t=>{const g=t.side||'';let last=groups[groups.length-1];if(!last||last.k!==g){last={k:g,t:[]};groups.push(last)}last.t.push(t)});
+  return groups.map(g=>'<div class="side">'+(g.k?'<h4>'+esc(g.k)+'</h4>':'')+g.t.map(t=>'<div class="trk"><span class="n">'+esc(t.pos)+'</span><span>'+esc(t.title)+'</span><span class="t">'+esc(t.len)+'</span></div>').join('')+'</div>').join('');
+}
+function spotHTML(id){const s=spotOf(id);if(!s)return '';
+  return '<div class="spot"><span class="eyebrow" style="color:#ffffffaa">On the shelf</span><span class="big">#'+s.pos+' of '+s.total+'</span><span>'+esc(s.section)+' · '+s.secPos+' of '+s.secTotal+' in this section</span><span class="between">'+
+    (s.before&&s.after?'Between <b>'+esc(s.before.artist)+' — '+esc(s.before.title)+'</b> and <b>'+esc(s.after.artist)+' — '+esc(s.after.title)+'</b>':s.before?'After <b>'+esc(s.before.artist)+' — '+esc(s.before.title)+'</b>, at the end':s.after?'First, before <b>'+esc(s.after.artist)+' — '+esc(s.after.title)+'</b>':'The only record on the shelf')+'</span></div>'}
+function openRecord(id){
+  const r=S.records.find(x=>x.id===id);if(!r)return;
+  const link=safeUrl(sourceLink(r));
+  const sh=openSheet('<div class="sheet-head"><div style="flex:1"><span class="eyebrow">'+(r.status==='owned'?'In my collection':'On my wishlist'+(r.any_pressing?' · any pressing':''))+'</span><h2>'+esc(r.title)+'</h2><p class="muted">'+esc(r.artist)+'</p></div><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
+    (r.status==='owned'&&r.pressing_confirmed===false?'<div class="notice warn"><b>Pressing not confirmed.</b> Saved with a best guess. <button class="btn small" id="fixP" style="margin-left:6px">Fix the pressing</button></div>':'')+
+    '<div class="detail">'+sleeve(r,'lg')+'<div class="stack">'+(r.status==='owned'?spotHTML(r.id):'')+
+    '<dl class="kv">'+facts(r).map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>').join('')+((r.genres||[]).length?'<dt>Genre</dt><dd>'+esc([...(r.genres||[]),...(r.styles||[])].join(', '))+'</dd>':'')+
+    (r.condition_media||r.condition_sleeve?'<dt>Condition</dt><dd>Record '+esc(r.condition_media||'—')+' · Sleeve '+esc(r.condition_sleeve||'—')+'</dd>':'')+(r.bought_where?'<dt>Bought</dt><dd>'+esc(r.bought_where)+(r.price_paid!=null&&r.price_paid!==''?' · $'+esc(Number(r.price_paid).toFixed(2)):'')+'</dd>':'')+
+    (r.notes?'<dt>Notes</dt><dd>'+esc(r.notes)+'</dd>':'')+'</dl>'+
+    (link?'<a href="'+esc(link)+'" target="_blank" rel="noopener">See this pressing on '+(r.source==='discogs'?'Discogs':'MusicBrainz')+' ↗</a>':'')+
+    '</div></div><h3>Tracklist</h3>'+tracklistHTML(r.tracks)+
+    '<div class="row">'+(r.status==='wanted'?'<button class="btn primary" id="got">I got it</button>':'<button class="btn" id="shelfGo">Show on shelf</button>')+'<button class="btn" id="edit">Edit details</button><button class="btn ghost" id="del" style="color:var(--accent-ink)">Remove</button></div>');
+  sh.querySelector('#x').onclick=closeSheet;
+  sh.querySelector('#edit').onclick=()=>openSaveForm(r,{editing:true});
+  sh.querySelector('#del').onclick=()=>confirmSheet('Remove “'+r.title+'”?','It comes off your '+(r.status==='owned'?'collection':'wishlist')+'. You can add it again later.','Remove',()=>{deleteRecord(r.id);closeSheet();render();toast('Removed '+esc(r.title))});
+  const fp=sh.querySelector('#fixP');if(fp)fp.onclick=()=>openAddFlow({mode:'owned',fix:r,prefill:{artist:r.artist,title:r.title,barcode:r.barcode}});
+  const got=sh.querySelector('#got');if(got)got.onclick=()=>gotIt(r);
+  const sg=sh.querySelector('#shelfGo');if(sg)sg.onclick=()=>{S.focusId=r.id;closeSheet();setTab('shelf')};
+}
+function confirmSheet(title,body,yes,onYes){const sh=openSheet('<h2>'+esc(title)+'</h2><p>'+esc(body)+'</p><div class="row"><button class="btn primary" id="yes">'+esc(yes)+'</button><button class="btn" id="no">Cancel</button></div>');sh.querySelector('#yes').onclick=onYes;sh.querySelector('#no').onclick=closeSheet}
+function gotIt(r){
+  const sh=openSheet('<div class="sheet-head"><h2>Got “'+esc(r.title)+'”</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
+    (r.any_pressing||!r.source_id?'<p>You wanted any pressing. Which one did you find?</p>':'<p>Is it the pressing on your list?</p><div class="card">'+factChips(r)+'</div>')+
+    '<div class="stack"><button class="btn primary block" id="same">'+(r.any_pressing||!r.source_id?'Keep the details I saved':'Yes, same pressing')+'</button><button class="btn block" id="diff">'+(r.any_pressing||!r.source_id?'Scan or search the one I found':'No, a different pressing')+'</button></div>');
+  sh.querySelector('#x').onclick=closeSheet;
+  sh.querySelector('#same').onclick=()=>openSaveForm({...r,status:'owned',pressing_confirmed:!r.any_pressing&&!!r.source_id},{fromWish:true});
+  sh.querySelector('#diff').onclick=()=>openAddFlow({mode:'owned',fix:r,fromWish:true,prefill:{artist:r.artist,title:r.title}});
+}
+
+/* add flow */
+function renderAdd(){
+  view.innerHTML='<div class="stack"><h2>Add a record</h2>'+
+    '<div class="grid2"><button class="btn primary" id="aOwned" style="min-height:96px;flex-direction:column"><span style="font-size:26px">＋</span>I own it</button><button class="btn dark" id="aWant" style="min-height:96px;flex-direction:column"><span style="font-size:26px">♡</span>I want it</button></div>'+
+    (!S.settings.discogs_token?'<div class="notice info">Lookups use MusicBrainz. For records it can’t find, add a free <b>Discogs token</b> in Settings and the app will try Discogs too.</div>':'')+
+    '<div class="card stack"><h3>Tips for older records</h3><p class="small muted">Records before the 1980s often have no barcode. Search by artist and title, then match the catalog number printed on the spine and the label.</p></div></div>';
+  $('#aOwned').onclick=()=>openAddFlow({mode:'owned'});$('#aWant').onclick=()=>openAddFlow({mode:'wanted'});
+}
+function openAddFlow(opts){
+  const o=Object.assign({mode:'owned',prefill:{}},opts);
+  const title=o.fix?(o.fromWish?'Which pressing did you find?':'Fix the pressing'):(o.mode==='wanted'?'Add to my wishlist':'Add to my collection');
+  const startWith=o.prefill.artist||o.prefill.title?'search':'scan';
+  const sh=openSheet('<div class="sheet-head"><h2>'+esc(title)+'</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
+    '<div class="seg" role="group" aria-label="How to find it"><button data-m="scan">Scan</button><button data-m="search">Search</button><button data-m="manual">By hand</button></div><div id="pane" class="stack"></div><div id="results" class="stack"></div>');
+  sh.querySelector('#x').onclick=closeSheet;
+  const pane=sh.querySelector('#pane'),results=sh.querySelector('#results');
+  const setMode=m=>{stopScan();sh.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));results.innerHTML='';
+    if(m==='scan'){
+      pane.innerHTML=scannerHTML('vid')+'<div class="row"><label class="btn small" style="cursor:pointer">📷 Use a photo<input type="file" accept="image/*" capture="environment" id="photo" class="hidden"></label></div>'+
+        '<form id="fUpc" class="toolbar"><input type="text" inputmode="numeric" id="upc" placeholder="Or type the barcode number" aria-label="Barcode number"><button class="btn dark">Look up</button></form><p id="camMsg" class="small muted"></p>';
+      const go=code=>{pane.querySelector('#upc').value=code;lookupBarcode(code)};
+      startScan(pane.querySelector('#vid'),go).catch(e=>{pane.querySelector('.scanbox').classList.add('hidden');pane.querySelector('#camMsg').textContent=String(e.message||'The camera isn’t available here').replace(/\.?$/,'.')+' Type the barcode or use a photo.'});
+      pane.querySelector('#fUpc').onsubmit=e=>{e.preventDefault();const v=pane.querySelector('#upc').value.trim();if(v)lookupBarcode(v)};
+      pane.querySelector('#photo').onchange=async e=>{const f=e.target.files[0];if(!f)return;results.innerHTML='<div class="row"><span class="spinner"></span>Reading the barcode…</div>';const code=await decodePhoto(f).catch(()=>null);if(code)go(code);else results.innerHTML='<div class="notice warn">Couldn’t read a barcode in that photo. Try closer, with the barcode flat and well lit, or type the number.</div>'};
+    }else if(m==='search'){
+      pane.innerHTML='<form id="fS" class="stack"><input type="text" id="sa" placeholder="Artist" value="'+esc(o.prefill.artist||'')+'" aria-label="Artist"><input type="text" id="st" placeholder="Album title" value="'+esc(o.prefill.title||'')+'" aria-label="Album title"><button class="btn dark">Search</button></form>';
+      pane.querySelector('#fS').onsubmit=e=>{e.preventDefault();const a=pane.querySelector('#sa').value.trim(),t=pane.querySelector('#st').value.trim();if(a||t)lookupText(a,t)};
+      if(o.prefill.artist||o.prefill.title)lookupText(o.prefill.artist||'',o.prefill.title||'');
+    }else{
+      openSaveForm({id:o.fix?o.fix.id:uuid(),status:o.mode,title:o.prefill.title||'',artist:o.prefill.artist||'',barcode:o.prefill.barcode||'',source:'manual',tracks:[],genres:[],styles:[],pressing_confirmed:true,created_at:o.fix?.created_at||new Date().toISOString()},{manual:true,fromWish:o.fromWish,base:o.fix});
+    }};
+  sh.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>setMode(b.dataset.m));
+
+  const busy=t=>{results.innerHTML='<div class="row"><span class="spinner"></span>'+esc(t)+'</div>'};
+  async function lookupBarcode(code){
+    stopScan();const local=findByBarcode(code).filter(r=>!o.fix||r.id!==o.fix.id);
+    busy('Looking up '+code+'…');
+    const {cands,errs}=await searchBarcode(code);
+    showCands(cands,errs,{code,local});
+  }
+  async function lookupText(a,t){busy('Searching for '+[a,t].filter(Boolean).join(' — ')+'…');const {cands,errs}=await searchText(a,t);showCands(cands,errs,{a,t})}
+  let vinylOnly=true,country='';
+  function showCands(cands,errs,ctx){
+    const off=errs.some(e=>e==='offline');
+    let head='';
+    if(ctx.local&&ctx.local.length){const l=ctx.local[0];head+='<div class="notice '+(l.status==='owned'?'warn':'info')+'">'+(l.status==='owned'?'<b>You already own this:</b> ':'<b>It’s on your wishlist:</b> ')+esc(l.artist)+' — '+esc(l.title)+(l.status==='wanted'&&o.mode==='owned'?' <button class="btn small" id="fromWish">Move it from my wishlist</button>':'')+'</div>'}
+    if(!cands.length){
+      results.innerHTML=head+(off?'<div class="notice err">No connection to the music catalogs right now. <button class="btn small" id="retry">Try again</button></div>':errs.length?'<div class="notice err">'+esc(errs.filter(e=>e!=='offline').join(' · '))+' <button class="btn small" id="retry">Try again</button></div>':'<div class="notice warn">'+(ctx.code?'That barcode isn’t in MusicBrainz'+(S.settings.discogs_token?' or Discogs':'')+'.':'No matches.')+' Try searching by artist and title, or add it by hand.</div>')+
+        '<div class="row">'+(ctx.code?'<button class="btn" id="toSearch">Search by artist and title</button>':'')+'<button class="btn" id="toManual">Add it by hand</button></div>';
+      const rt=results.querySelector('#retry');if(rt)rt.onclick=()=>ctx.code?lookupBarcode(ctx.code):lookupText(ctx.a,ctx.t);
+      const ts=results.querySelector('#toSearch');if(ts)ts.onclick=()=>setMode('search');
+      results.querySelector('#toManual').onclick=()=>{o.prefill.barcode=ctx.code||'';o.prefill.artist=ctx.a||o.prefill.artist;o.prefill.title=ctx.t||o.prefill.title;setMode('manual')};
+      bindFromWish();return;
+    }
+    const draw=()=>{
+      const countries=[...new Set(cands.map(c=>c.country).filter(Boolean))].sort();
+      const hasVinyl=cands.some(c=>/vinyl|lp|"/i.test(c.format));
+      let list=cands.filter(c=>(!vinylOnly||!hasVinyl||/vinyl|lp|"/i.test(c.format))&&(!country||c.country===country));
+      results.innerHTML=head+'<div class="row" style="justify-content:space-between"><b>'+list.length+' pressing'+(list.length===1?'':'s')+'</b><span class="small muted">Pick the one that matches yours</span></div>'+
+        '<div class="row">'+(hasVinyl?'<label class="chk"><input type="checkbox" id="vo"'+(vinylOnly?' checked':'')+'>Vinyl only</label>':'')+(countries.length>1?'<select id="cty" style="width:auto;min-width:150px" aria-label="Country"><option value="">All countries</option>'+countries.map(c=>'<option'+(c===country?' selected':'')+'>'+esc(c)+'</option>').join('')+'</select>':'')+'</div>'+
+        (list.length>1?'<details class="help"><summary>How to tell which pressing you have</summary><ol><li><b>Catalog number</b>: printed on the spine and the label (e.g. “PCS 7088”). The bold tag on each match is the one to compare.</li><li><b>Country</b>: “Made in …” on the back or the label.</li><li><b>Label</b>: the name and design on the centre label. Reissues often use a different label.</li><li><b>Runout etching</b>: letters and numbers scratched into the shiny ring by the centre. Open a match’s page and compare its “Matrix / Runout”.</li><li>Still unsure? Use <b>Not sure, save my best guess</b> and fix it later.</li></ol></details>':'')+
+        '<div class="list">'+list.map(c=>'<div><button class="cand" data-i="'+cands.indexOf(c)+'">'+sleeve(c)+'<div><span class="src">'+(c.source==='discogs'?'Discogs':'MusicBrainz')+'</span><b>'+esc(c.title)+'</b><span class="muted small">'+esc(c.artist)+'</span>'+factChips(c)+'</div></button>'+
+          (safeUrl(sourceLink({source:c.source,source_id:c.id}))?'<a class="small" target="_blank" rel="noopener" href="'+esc(sourceLink({source:c.source,source_id:c.id}))+'">Full pressing details ↗</a>':'')+'</div>').join('')+'</div>'+
+        (list.length>1&&o.mode==='owned'?'<button class="btn block" id="guess">Not sure, save my best guess</button>':'')+
+        (o.mode==='wanted'?'<p class="small muted">Not fussy about the pressing? Pick any match and tick “Any pressing” on the next screen.</p>':'')+
+        '<button class="btn ghost block" id="toManual2">None of these, add it by hand</button>';
+      const vo=results.querySelector('#vo');if(vo)vo.onchange=e=>{vinylOnly=e.target.checked;draw()};
+      const cy=results.querySelector('#cty');if(cy)cy.onchange=e=>{country=e.target.value;draw()};
+      results.querySelectorAll('.cand').forEach(b=>b.onclick=()=>pick(cands[+b.dataset.i],true));
+      const g=results.querySelector('#guess');if(g)g.onclick=()=>pick(list[0],false);
+      results.querySelector('#toManual2').onclick=()=>{o.prefill.barcode=ctx.code||'';setMode('manual')};
+      bindFromWish();
+    };
+    draw();
+    function bindFromWish(){const fw=results.querySelector('#fromWish');if(fw)fw.onclick=()=>gotIt(ctx.local[0])}
+  }
+  async function pick(c,confirmed){
+    busy('Getting cover art and tracklist…');
+    let d;try{d=await fetchDetails(c)}catch(e){results.innerHTML='<div class="notice err">'+(e.message==='offline'?'Lost the connection while fetching details.':esc(e.message))+' <button class="btn small" id="retry">Try again</button></div>';results.querySelector('#retry').onclick=()=>pick(c,confirmed);return}
+    const base=o.fix||{};
+    const rec=Object.assign({},base,d,{id:base.id||uuid(),status:o.mode==='wanted'?'wanted':'owned',pressing_confirmed:confirmed,created_at:base.created_at||new Date().toISOString()});
+    if(!rec.barcode&&o.prefill.barcode)rec.barcode=o.prefill.barcode;
+    openSaveForm(rec,{fromWish:o.fromWish,base:o.fix});
+  }
+  setMode(startWith==='search'?'search':'scan');
+}
+function openSaveForm(rec,opt){
+  opt=opt||{};const owned=rec.status==='owned';const dup=owned?ownedMatch(rec):[];
+  const wantedDup=!owned?S.records.filter(r=>r.id!==rec.id&&r.status==='owned'&&String(r.title).toLowerCase()===String(rec.title).toLowerCase()&&artistKey(r.artist,{ignoreThe:true})===artistKey(rec.artist,{ignoreThe:true})):[];
+  const manual=opt.manual||rec.source==='manual';
+  const sh=openSheet('<div class="sheet-head"><h2>'+(opt.editing?'Edit details':owned?'Save to my collection':'Save to my wishlist')+'</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
+    (dup.length&&!opt.editing?'<div class="notice warn"><b>You already own this.</b> '+esc(dup[0].artist)+' — '+esc(dup[0].title)+(dup[0].catno?' ('+esc(dup[0].catno)+')':'')+'. Saving adds a second copy.</div>':'')+
+    (wantedDup.length?'<div class="notice warn"><b>You already own this one.</b> Add it to your wishlist anyway if you want another pressing.</div>':'')+
+    (rec.pressing_confirmed===false&&owned?'<div class="notice info">Saving with a best guess for the pressing. It’s tagged “Pressing?” so you can fix it later.</div>':'')+
+    '<form id="fSave" class="stack">'+
+    (manual||opt.editing?'<div class="grid2"><label class="f">Artist<input type="text" name="artist" required value="'+esc(rec.artist)+'"></label><label class="f">Title<input type="text" name="title" required value="'+esc(rec.title)+'"></label>'+
+      '<label class="f">Year<input type="number" name="year" inputmode="numeric" value="'+esc(rec.year||'')+'"></label><label class="f">Genre<input type="text" name="genre" list="genres" value="'+esc((rec.genres||[])[0]||'')+'"></label>'+
+      '<label class="f">Label<input type="text" name="label" value="'+esc(rec.label||'')+'"></label><label class="f">Catalog #<input type="text" name="catno" value="'+esc(rec.catno||'')+'"></label>'+
+      '<label class="f">Country<input type="text" name="country" value="'+esc(rec.country||'')+'"></label><label class="f">Barcode<input type="text" name="barcode" inputmode="numeric" value="'+esc(rec.barcode||'')+'"></label></div><datalist id="genres">'+genresAll().map(g=>'<option>'+esc(g)+'</option>').join('')+'</datalist>'
+      :'<div class="cand" style="cursor:default">'+sleeve(rec)+'<div><b>'+esc(rec.title)+'</b><span class="muted small">'+esc(rec.artist)+'</span>'+factChips(rec)+(rec.genres&&rec.genres.length?'<div class="small muted" style="margin-top:4px">'+esc(rec.genres.join(', '))+'</div>':'')+'</div></div>'+
+       (!(rec.genres||[]).length?'<label class="f">Genre (for sorting)<input type="text" name="genre" list="genres" placeholder="e.g. Rock, Jazz, Soul"></label><datalist id="genres">'+genresAll().map(g=>'<option>'+esc(g)+'</option>').join('')+'</datalist>':''))+
+    (owned?'<div class="grid2"><label class="f">Record condition<select name="condition_media">'+GRADES.map(g=>'<option'+(g===(rec.condition_media||'')?' selected':'')+'>'+g+'</option>').join('')+'</select></label><label class="f">Sleeve condition<select name="condition_sleeve">'+GRADES.map(g=>'<option'+(g===(rec.condition_sleeve||'')?' selected':'')+'>'+g+'</option>').join('')+'</select></label>'+
+      '<label class="f">Where I bought it<input type="text" name="bought_where" value="'+esc(rec.bought_where||'')+'" placeholder="Store, website, gift…"></label><label class="f">What I paid ($)<input type="number" step="0.01" inputmode="decimal" name="price_paid" value="'+esc(rec.price_paid??'')+'"></label></div>'
+      :'<label class="chk"><input type="checkbox" name="any_pressing"'+(rec.any_pressing?' checked':'')+'>Any pressing is fine</label>')+
+    '<label class="chk"><input type="checkbox" name="compilation"'+(rec.compilation?' checked':'')+'>Soundtrack or compilation</label>'+
+    '<label class="f">Notes<textarea name="notes" placeholder="Anything worth remembering">'+esc(rec.notes||'')+'</textarea></label>'+
+    '<button class="btn primary block">'+(opt.editing?'Save changes':owned?'Save to my collection':'Save to my wishlist')+'</button></form>');
+  sh.querySelector('#x').onclick=closeSheet;
+  sh.querySelector('#fSave').onsubmit=e=>{
+    e.preventDefault();const fd=new FormData(e.target);const r=Object.assign({},rec);
+    ['artist','title','label','catno','country','barcode'].forEach(k=>{if(fd.has(k))r[k]=fd.get(k).trim()});
+    if(fd.has('year'))r.year=parseInt(fd.get('year'))||null;
+    if(fd.has('genre')){const g=cap(fd.get('genre').trim());r.genres=g?[g,...(r.genres||[]).filter(x=>x!==g)].slice(0,4):(manual||opt.editing?(r.genres||[]).slice(1):r.genres||[])}
+    ['condition_media','condition_sleeve','bought_where','notes'].forEach(k=>{if(fd.has(k))r[k]=fd.get(k).trim()||null});
+    if(fd.has('price_paid')){const p=fd.get('price_paid');r.price_paid=p===''?null:Math.round(parseFloat(p)*100)/100}
+    r.compilation=fd.has('compilation');if(!owned)r.any_pressing=fd.has('any_pressing');
+    r.genres=r.genres||[];r.styles=r.styles||[];r.tracks=r.tracks||[];
+    saveRecord(r);closeSheet();
+    if(r.status==='owned'){const s=spotOf(r.id);toast('<b>Saved.</b> '+(s?'Shelf spot #'+s.pos+' in '+esc(s.section)+(s.before&&s.after?', between '+esc(s.before.artist)+' and '+esc(s.after.artist):s.before?', after '+esc(s.before.artist):s.after?', before '+esc(s.after.artist):''):''),7000);if(!opt.editing){S.focusId=r.id;}}
+    else toast('<b>On your wishlist.</b>');
+    render();
+    if(opt.editing)openRecord(r.id);
+  };
+}
+
+/* wishlist (store mode) */
+function renderWishlist(){
+  const all=S.records.filter(r=>r.status==='wanted');const q=S.wq.toLowerCase();
+  const list=all.filter(r=>!q||(r.title+' '+r.artist).toLowerCase().includes(q)).sort((a,b)=>artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true})));
+  view.innerHTML='<div class="stack"><div class="row" style="justify-content:space-between;align-items:baseline"><h2>Wishlist</h2><span class="muted count">'+all.length+' wanted</span></div>'+
+    (all.length?'<input type="search" id="wq" placeholder="Search my wishlist" value="'+esc(S.wq)+'" aria-label="Search my wishlist"><p class="small muted">Saved on this phone too, so it opens even with no signal in the store.</p><div class="list">'+
+      list.map(r=>'<div class="store-item">'+sleeve(r)+'<div class="stack" style="gap:6px"><div><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+'</span></div><div class="small">'+(r.any_pressing?'<span class="fact key">Any pressing</span>':(r.catno||r.country||r.year?'<span class="fact key">'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · '))+'</span>':''))+'</div><div class="row"><button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button><button class="btn small" data-open="'+esc(r.id)+'">Details</button></div></div></div>').join('')+'</div>'
+      :'<div class="empty"><div class="bigdisc"></div><h2>Nothing on the hunt yet</h2><p class="muted">Add the records you’re looking for, and check them on your phone when you’re digging through the bins.</p><button class="btn dark" id="go">♡ Add a record I want</button></div>')+'</div>';
+  const wq=$('#wq');if(wq)wq.oninput=e=>{S.wq=e.target.value;const p=e.target.selectionStart;renderWishlist();const n=$('#wq');n.focus();n.setSelectionRange(p,p)};
+  const go=$('#go');if(go)go.onclick=()=>openAddFlow({mode:'wanted'});
+  view.querySelectorAll('[data-got]').forEach(b=>b.onclick=()=>gotIt(S.records.find(r=>r.id===b.dataset.got)));
+  view.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openRecord(b.dataset.open));
+}
+
+/* shelf */
+function renderShelf(){
+  const rule=S.settings.shelf_rule;const list=shelf();
+  if(!list.length){view.innerHTML='<div class="stack"><h2>Shelf</h2><div class="card stack"><p><b>Sorted by:</b> '+esc(ruleText(rule))+'</p><button class="btn" id="rule">Change how my shelf is sorted</button></div><p class="muted">Add records and they’ll line up here in shelf order.</p></div>';$('#rule').onclick=openShelfRule;return}
+  const q=S.shelfQ.toLowerCase();const secs=[];list.forEach((r,i)=>{const s=sectionOf(r,rule);let last=secs[secs.length-1];if(!last||last.s!==s){last={s,items:[]};secs.push(last)}last.items.push({r,pos:i+1})});
+  view.innerHTML='<div class="stack"><div class="row" style="justify-content:space-between;align-items:baseline"><h2>Shelf</h2><span class="muted count">'+list.length+' records</span></div>'+
+    '<div class="card stack" style="gap:8px"><p><b>Sorted by:</b> '+esc(ruleText(rule))+'</p><button class="btn small" id="rule" style="align-self:flex-start">Change how my shelf is sorted</button></div>'+
+    '<input type="search" id="sq" placeholder="Find a record on my shelf" value="'+esc(S.shelfQ)+'" aria-label="Find a record on my shelf">'+
+    secs.map(s=>'<section class="shelf-sec"><h3><span>'+esc(s.s)+'</span><span class="small muted">'+s.items.length+'</span></h3>'+s.items.map(({r,pos})=>{const hit=(q&&(r.title+' '+r.artist).toLowerCase().includes(q))||S.focusId===r.id;return '<button class="spine'+(hit?' hit':'')+'" data-id="'+esc(r.id)+'" id="sp-'+esc(r.id)+'"><span class="pos">'+pos+'</span>'+sleeve(r)+'<span><b>'+esc(r.artist)+'</b><span>'+esc(r.title)+(r.year?' · '+r.year:'')+'</span></span></button>'}).join('')+'</section>').join('')+'</div>';
+  $('#rule').onclick=openShelfRule;
+  $('#sq').oninput=e=>{S.shelfQ=e.target.value;S.focusId=null;const p=e.target.selectionStart;renderShelf();const n=$('#sq');n.focus();n.setSelectionRange(p,p);const h=view.querySelector('.spine.hit');if(h&&S.shelfQ)h.scrollIntoView({block:'center'})};
+  view.querySelectorAll('.spine').forEach(b=>b.onclick=()=>openRecord(b.dataset.id));
+  if(S.focusId){const el=document.getElementById('sp-'+S.focusId);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),60)}
+}
+function openShelfRule(){
+  const rule=S.settings.shelf_rule;const ord=[...rule.order];while(ord.length<3)ord.push('');
+  const PRE=[['Artist A–Z, then year',['artist','year']],['Genre sections, then artist, then year',['genre','artist','year']],['By era, then artist',['decade','artist','year']]];
+  const opts=sel=>'<option value="">—</option>'+Object.entries(KEYS).map(([k,v])=>'<option value="'+k+'"'+(k===sel?' selected':'')+'>'+v+'</option>').join('');
+  const sh=openSheet('<div class="sheet-head"><h2>How my shelf is sorted</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
+    '<div class="stack"><span class="eyebrow">Quick picks</span>'+PRE.map((p,i)=>'<button class="btn block" data-p="'+i+'" style="justify-content:flex-start">'+p[0]+'</button>').join('')+'</div>'+
+    '<form id="fRule" class="stack"><span class="eyebrow">Or build your own</span>'+ord.map((k,i)=>'<div class="ruleRow"><span>'+(i+1)+'</span><select name="k'+i+'" aria-label="Sort level '+(i+1)+'">'+opts(k)+'</select></div>').join('')+
+    '<label class="chk"><input type="checkbox" name="ignoreThe"'+(rule.ignoreThe?' checked':'')+'>Ignore “The”, “A” and “An” (The Beatles goes under B)</label>'+
+    '<label class="chk"><input type="checkbox" name="variousSection"'+(rule.variousSection?' checked':'')+'>Soundtracks and compilations get their own section at the end</label>'+
+    '<button class="btn primary block">Save my shelf order</button></form>');
+  sh.querySelector('#x').onclick=closeSheet;
+  sh.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{PRE[+b.dataset.p][1].forEach((k,i)=>sh.querySelector('[name=k'+i+']').value=k);for(let i=PRE[+b.dataset.p][1].length;i<3;i++)sh.querySelector('[name=k'+i+']').value=''});
+  sh.querySelector('#fRule').onsubmit=e=>{e.preventDefault();const fd=new FormData(e.target);const order=[0,1,2].map(i=>fd.get('k'+i)).filter(Boolean).filter((k,i,a)=>a.indexOf(k)===i);if(!order.length)order.push('artist');
+    S.settings.shelf_rule={order,ignoreThe:fd.has('ignoreThe'),variousSection:fd.has('variousSection')};saveSettings();closeSheet();render();toast('Shelf order saved: '+esc(ruleText(S.settings.shelf_rule)))};
+}
+
+/* check a record (in the store; works offline) */
+function renderCheck(){
+  view.innerHTML='<div class="stack"><h2>Check a record</h2><p class="muted">Scan a record in the bin to see if it’s on your wishlist or already on your shelf. This works without signal.</p>'+scannerHTML('cvid')+
+    '<div class="row"><label class="btn small" style="cursor:pointer">📷 Use a photo<input type="file" accept="image/*" capture="environment" id="cphoto" class="hidden"></label></div>'+
+    '<form id="fC" class="toolbar"><input type="text" inputmode="numeric" id="cupc" placeholder="Or type the barcode number" aria-label="Barcode number"><button class="btn dark">Check</button></form>'+
+    '<form id="fCt" class="toolbar"><input type="search" id="ct" placeholder="Or search by artist or title" aria-label="Search by artist or title"><button class="btn">Check</button></form><p id="cmsg" class="small muted"></p><div id="cres" class="stack"></div></div>';
+  const res=$('#cres');
+  const show=(matches,label)=>{
+    if(!matches.length){res.innerHTML='<div class="result-big card"><b>Not in your lists</b><span class="muted">'+esc(label)+'</span><div class="row" style="justify-content:center"><button class="btn small" id="lk">Look it up</button></div></div>';$('#lk').onclick=()=>openAddFlow({mode:'owned',prefill:/^\d+$/.test(label)?{barcode:label}:{title:label}});return}
+    res.innerHTML=matches.map(r=>'<div class="result-big" style="background:'+(r.status==='wanted'?'var(--ok-soft);color:var(--ok)':'var(--warn-soft);color:var(--warn)')+'"><span class="eyebrow" style="color:inherit">'+(r.status==='wanted'?'On your wishlist':'You already own this')+'</span><b>'+esc(r.artist)+' — '+esc(r.title)+'</b><span>'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · ')||(r.any_pressing?'Any pressing':''))+'</span><div class="row" style="justify-content:center">'+(r.status==='wanted'?'<button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button>':'')+'<button class="btn small" data-open="'+esc(r.id)+'">Details</button></div></div>').join('');
+    res.querySelectorAll('[data-got]').forEach(b=>b.onclick=()=>gotIt(S.records.find(r=>r.id===b.dataset.got)));
+    res.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openRecord(b.dataset.open));
+  };
+  const byCode=code=>{$('#cupc').value=code;show(findByBarcode(code),code)};
+  const again=()=>startScan($('#cvid'),c=>{byCode(c);setTimeout(()=>{if(S.tab==='check'&&$('#cvid'))again()},2500)}).catch(e=>{const b=view.querySelector('.scanbox');if(b)b.classList.add('hidden');$('#cmsg').textContent=String(e.message||'The camera isn’t available here').replace(/\.?$/,'.')+' Type the barcode or search instead.'});
+  again();
+  $('#fC').onsubmit=e=>{e.preventDefault();const v=$('#cupc').value.trim();if(v)byCode(v)};
+  $('#fCt').onsubmit=e=>{e.preventDefault();const q=$('#ct').value.trim().toLowerCase();if(q)show(S.records.filter(r=>(r.title+' '+r.artist).toLowerCase().includes(q)),$('#ct').value.trim())};
+  $('#cphoto').onchange=async e=>{const f=e.target.files[0];if(!f)return;const c=await decodePhoto(f).catch(()=>null);if(c)byCode(c);else res.innerHTML='<div class="notice warn">Couldn’t read a barcode in that photo.</div>'};
+}
+
+/* settings */
+function openSettings(){
+  const owned=S.records.filter(r=>r.status==='owned').length,wanted=S.records.filter(r=>r.status==='wanted').length;
+  const sh=openSheet('<div class="sheet-head"><h2>Settings</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
+    '<div class="card stack"><h3>Discogs</h3><p class="small muted">Optional. When MusicBrainz can’t find a record, the app tries Discogs. Get a free token at discogs.com → Settings → Developers → Generate new token, then paste it here. It’s stored in your account only.</p>'+
+    '<form id="fTok" class="toolbar"><input type="password" id="tok" autocomplete="off" placeholder="Paste your Discogs token" value="'+esc(S.settings.discogs_token||'')+'" aria-label="Discogs token"><button class="btn dark">Save</button></form></div>'+
+    '<div class="card stack"><h3>Shelf order</h3><p>'+esc(ruleText(S.settings.shelf_rule))+'</p><button class="btn small" id="rule" style="align-self:flex-start">Change</button></div>'+
+    '<div class="card stack"><h3>Backup</h3><p class="small muted">'+owned+' in the collection, '+wanted+' on the wishlist.</p><button class="btn small" id="exp" style="align-self:flex-start">Download a copy (CSV)</button></div>'+
+    '<div class="card stack"><h3>Account</h3><p class="small">Signed in as <b>'+esc(S.user?.email||'')+'</b></p><button class="btn small" id="out" style="align-self:flex-start">Sign out</button></div>');
+  sh.querySelector('#x').onclick=closeSheet;
+  sh.querySelector('#fTok').onsubmit=e=>{e.preventDefault();S.settings.discogs_token=sh.querySelector('#tok').value.trim();saveSettings();toast(S.settings.discogs_token?'Discogs token saved':'Discogs token removed')};
+  sh.querySelector('#rule').onclick=openShelfRule;
+  sh.querySelector('#exp').onclick=()=>{
+    const cols=['status','artist','title','year','label','catno','country','format','barcode','genres','condition_media','condition_sleeve','bought_where','price_paid','notes'];
+    const q=v=>'"'+String(Array.isArray(v)?v.join('; '):v??'').replace(/"/g,'""')+'"';
+    const csv=[cols.join(',')].concat(shelf().concat(S.records.filter(r=>r.status==='wanted')).map(r=>cols.map(c=>q(r[c])).join(','))).join('\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='vinyl-collection.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+  };
+  sh.querySelector('#out').onclick=async()=>{if(S.queue.length&&!confirm('Some changes haven’t synced yet and will be lost. Sign out anyway?'))return;await sb.auth.signOut();S.user=null;S.records=[];S.queue=[];persist();closeSheet();render()};
+}
+
+/* ---------- start ---------- */
+(async function init(){
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if(!sb){S.user=LS.get('vc-user',null);render();return}
+  const {data}=await sb.auth.getSession();
+  S.user=data.session?.user||LS.get('vc-user',null);
+  sb.auth.onAuthStateChange((ev,session)=>{if(session?.user){S.user=session.user;LS.set('vc-user',{id:session.user.id,email:session.user.email})}});
+  if(S.user)LS.set('vc-user',{id:S.user.id,email:S.user.email});
+  render();
+  if(S.user)pull();
+})();
+}
+</script>
+</body>
+</html>
