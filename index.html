@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-26 14:35">
+<meta name="vc-version" content="2026-11-26 14:40">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -35,7 +35,7 @@ html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
 html{background:var(--surface)}
 body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;position:fixed;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column}
 #update-pill{position:fixed;z-index:70;left:50%;transform:translateX(-50%);top:calc(var(--top) + 74px);background:#1a1a1a;color:#fff;border:0;border-radius:999px;padding:9px 16px;font:600 13px var(--body);box-shadow:0 4px 14px rgba(0,0,0,.28);white-space:nowrap;cursor:pointer}
-#scroller{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+#scroller{flex:1;overflow-y:auto;padding-bottom:calc(64px + var(--bot));overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 button,input,select,textarea{font:inherit;color:inherit}
 h1,h2,h3{font-family:var(--display);margin:0;line-height:1.08;text-wrap:balance}
 h2{font-size:28px}h3{font-size:20px}
@@ -50,7 +50,7 @@ header.top h1{font-size:24px;flex:1;display:flex;align-items:center;gap:10px}
 .sync.pending{border-color:#f0cf80;color:#f0cf80}
 .iconbtn{background:none;border:0;color:inherit;min-width:44px;min-height:44px;border-radius:8px;cursor:pointer;font-size:20px}
 main{max-width:980px;margin:0 auto;padding:16px}
-nav.tabs{flex:none;position:relative;z-index:20;margin-top:auto;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:var(--bot)}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:var(--bot)}
 nav.tabs button{background:none;border:0;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:600 12px var(--body);color:var(--muted);cursor:pointer}
 nav.tabs button .i{font-size:20px;line-height:1}
 nav.tabs button[aria-current="page"]{color:var(--accent-ink)}
@@ -678,7 +678,7 @@ function openSettings(){
     '<form id="fTok" class="toolbar"><input type="password" id="tok" autocomplete="off" placeholder="Paste your Discogs token" value="'+esc(S.settings.discogs_token||'')+'" aria-label="Discogs token"><button class="btn dark">Save</button></form></div>'+
     '<div class="card stack"><h3>Shelf order</h3><p>'+esc(ruleText(S.settings.shelf_rule))+'</p><button class="btn small" id="rule" style="align-self:flex-start">Change</button></div>'+
     '<div class="card stack"><h3>Backup</h3><p class="small muted">'+owned+' in the collection, '+wanted+' on the wishlist.</p><button class="btn small" id="exp" style="align-self:flex-start">Download a copy (CSV)</button></div>'+
-    '<div class="card stack"><h3>Account</h3><p class="small">Signed in as <b>'+esc(S.user?.email||'')+'</b></p><button class="btn small" id="out" style="align-self:flex-start">Sign out</button></div>');
+    '<div class="card stack"><h3>Account</h3><p class="small">Signed in as <b>'+esc(S.user?.email||'')+'</b></p><p class="small muted">App version '+esc(APP_VERSION)+'</p><button class="btn small" id="out" style="align-self:flex-start">Sign out</button></div>');
   sh.querySelector('#x').onclick=closeSheet;
   sh.querySelector('#fTok').onsubmit=e=>{e.preventDefault();S.settings.discogs_token=sh.querySelector('#tok').value.trim();saveSettings();toast(S.settings.discogs_token?'Discogs token saved':'Discogs token removed')};
   sh.querySelector('#rule').onclick=openShelfRule;
