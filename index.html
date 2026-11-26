@@ -492,8 +492,9 @@ function openAddFlow(opts){
   const pane=sh.querySelector('#pane'),results=sh.querySelector('#results');
   const setMode=m=>{stopScan();sh.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===m));results.innerHTML='';
     if(m==='scan'){
-      pane.innerHTML=scannerHTML('vid')+'<div class="row"><label class="btn small" style="cursor:pointer">📷 Use a photo<input type="file" accept="image/*" capture="environment" id="photo" class="hidden"></label></div>'+
+      pane.innerHTML='<button type="button" class="btn dark block" id="noBc">No barcode? Search by artist and title</button>'+scannerHTML('vid')+'<div class="row"><label class="btn small" style="cursor:pointer">📷 Use a photo<input type="file" accept="image/*" capture="environment" id="photo" class="hidden"></label></div>'+
         '<form id="fUpc" class="toolbar"><input type="text" inputmode="numeric" id="upc" placeholder="Or type the barcode number" aria-label="Barcode number"><button class="btn dark">Look up</button></form><p id="camMsg" class="small muted"></p>';
+      pane.querySelector('#noBc').onclick=()=>setMode('search');
       const go=code=>{pane.querySelector('#upc').value=code;lookupBarcode(code)};
       startScan(pane.querySelector('#vid'),go).catch(e=>{pane.querySelector('.scanbox').classList.add('hidden');pane.querySelector('#camMsg').textContent=String(e.message||'The camera isn’t available here').replace(/\.?$/,'.')+' Type the barcode or use a photo.'});
       pane.querySelector('#fUpc').onsubmit=e=>{e.preventDefault();const v=pane.querySelector('#upc').value.trim();if(v)lookupBarcode(v)};
