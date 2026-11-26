@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-26 15:05">
+<meta name="vc-version" content="2026-11-26 15:10">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -49,7 +49,7 @@ header.top h1{font-size:24px;flex:1;display:flex;align-items:center;gap:10px}
 .sync.pending{border-color:#f0cf80;color:#f0cf80}
 .iconbtn{background:none;border:0;color:inherit;min-width:44px;min-height:44px;border-radius:8px;cursor:pointer;font-size:20px}
 main{max-width:980px;margin:0 auto;padding:16px}
-nav.tabs{flex:none;position:relative;z-index:20;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:var(--bot)}
+nav.tabs{flex:none;position:relative;z-index:20;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:calc(16px + var(--bot))}
 nav.tabs button{background:none;border:0;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:600 12px var(--body);color:var(--muted);cursor:pointer}
 nav.tabs button .i{font-size:20px;line-height:1}
 nav.tabs button[aria-current="page"]{color:var(--accent-ink)}
@@ -140,7 +140,7 @@ details.help ol{margin:8px 0 4px;padding-left:20px;display:flex;flex-direction:c
 .scanbox .aim{position:absolute;left:10%;right:10%;top:38%;height:24%;border:3px solid var(--accent);border-radius:10px;box-shadow:0 0 0 9999px rgba(0,0,0,.35)}
 .result-big{border-radius:14px;padding:18px;display:flex;flex-direction:column;gap:6px;text-align:center}
 .result-big b{font:700 26px/1.1 var(--display)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--bot));z-index:60;background:var(--deck);color:#fff;border-radius:12px;padding:12px 16px;max-width:min(92vw,520px);box-shadow:var(--shadow);font-size:15px}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(100px + var(--bot));z-index:60;background:var(--deck);color:#fff;border-radius:12px;padding:12px 16px;max-width:min(92vw,520px);box-shadow:var(--shadow);font-size:15px}
 .spinner{width:22px;height:22px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:spin .8s linear infinite;flex:none}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(prefers-reduced-motion:reduce){.spinner{animation-duration:3s}}
