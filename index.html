@@ -30,8 +30,9 @@
   --ok:#93d391; --ok-soft:#1e3020; --warn:#f0cf80; --warn-soft:#3a3018; --blue:#a9c2ff; --blue-soft:#1c2840;
   --shadow:0 1px 0 rgba(0,0,0,.3),0 2px 8px rgba(0,0,0,.3); color-scheme:dark}}
 *{box-sizing:border-box;min-width:0}
-html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;padding-bottom:calc(76px + var(--bot))}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;position:fixed;inset:0;display:flex;flex-direction:column;height:100%;height:100dvh}
+#scroller{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 button,input,select,textarea{font:inherit;color:inherit}
 h1,h2,h3{font-family:var(--display);margin:0;line-height:1.08;text-wrap:balance}
 h2{font-size:28px}h3{font-size:20px}
@@ -39,14 +40,14 @@ p{margin:0}
 a{color:var(--blue)}
 .muted{color:var(--muted)}.small{font-size:13px}
 .eyebrow{font:600 12px var(--body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
-header.top{position:sticky;top:0;z-index:20;background:var(--deck);color:var(--deck-ink);padding:calc(10px + var(--top)) 16px 10px;display:flex;align-items:center;gap:12px}
+header.top{flex:none;position:relative;z-index:20;background:var(--deck);color:var(--deck-ink);padding:calc(10px + var(--top)) 16px 10px;display:flex;align-items:center;gap:12px}
 header.top h1{font-size:24px;flex:1;display:flex;align-items:center;gap:10px}
 .disc{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle,var(--accent) 0 28%,#111 29% 33%,#2b2b2b 34% 52%,#111 53% 56%,#2b2b2b 57% 100%);flex:none}
 .sync{font:600 12px var(--body);border:1px solid rgba(255,255,255,.35);border-radius:99px;padding:3px 9px;white-space:nowrap}
 .sync.pending{border-color:#f0cf80;color:#f0cf80}
 .iconbtn{background:none;border:0;color:inherit;min-width:44px;min-height:44px;border-radius:8px;cursor:pointer;font-size:20px}
 main{max-width:980px;margin:0 auto;padding:16px}
-nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:var(--bot)}
+nav.tabs{flex:none;position:relative;z-index:20;background:var(--surface);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr);padding-bottom:var(--bot)}
 nav.tabs button{background:none;border:0;min-height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font:600 12px var(--body);color:var(--muted);cursor:pointer}
 nav.tabs button .i{font-size:20px;line-height:1}
 nav.tabs button[aria-current="page"]{color:var(--accent-ink)}
@@ -123,7 +124,7 @@ details.help ol{margin:8px 0 4px;padding-left:20px;display:flex;flex-direction:c
 .spot .big{font:700 30px/1 var(--display)}
 .spot .between{font-size:14.5px;opacity:.9}
 .shelf-sec{display:flex;flex-direction:column;gap:6px}
-.shelf-sec h3{position:sticky;top:calc(64px + var(--top));background:var(--bg);padding:8px 0;z-index:2;display:flex;justify-content:space-between;align-items:baseline}
+.shelf-sec h3{position:sticky;top:0;background:var(--bg);padding:8px 0;z-index:2;display:flex;justify-content:space-between;align-items:baseline}
 .spine{display:grid;grid-template-columns:44px 40px 1fr;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--deck);border-radius:6px;padding:6px 10px;cursor:pointer;text-align:left;width:100%}
 .spine .pos{font:700 18px var(--display);color:var(--muted);text-align:right;font-variant-numeric:tabular-nums}
 .spine .sleeve{width:40px}
@@ -153,7 +154,7 @@ details.help ol{margin:8px 0 4px;padding-left:20px;display:flex;flex-direction:c
   <span class="sync hidden" id="sync"></span>
   <button class="iconbtn" id="btnSettings" aria-label="Settings" title="Settings">⚙︎</button>
 </header>
-<main id="view"></main>
+<div id="scroller"><main id="view"></main></div>
 <nav class="tabs hidden" id="tabs" aria-label="Sections">
   <button data-tab="collection"><span class="i">▦</span>Collection</button>
   <button data-tab="wishlist"><span class="i">♡</span>Wishlist</button>
@@ -382,7 +383,7 @@ async function decodePhoto(file){
 function scannerHTML(id){return '<div class="scanbox"><video id="'+id+'" muted playsinline></video><div class="aim"></div></div><p class="small muted">Hold the barcode inside the frame. If the camera won’t focus, take a photo instead.</p>'}
 
 /* ---------- views ---------- */
-function setTab(t){S.tab=t;LS.set('vc-tab',t);render();window.scrollTo(0,0)}
+function setTab(t){S.tab=t;LS.set('vc-tab',t);render();$('#scroller').scrollTop=0}
 document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 $('#btnSettings').addEventListener('click',()=>{if(S.user)openSettings()});
 function render(){
