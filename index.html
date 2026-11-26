@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
+<meta name="vc-version" content="2026-11-26 14:25">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -32,6 +33,7 @@
 *{box-sizing:border-box;min-width:0}
 html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
 body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;position:fixed;inset:0;display:flex;flex-direction:column;height:100%;height:100dvh}
+#update-pill{position:fixed;z-index:70;left:50%;transform:translateX(-50%);top:calc(var(--top) + 74px);background:#1a1a1a;color:#fff;border:0;border-radius:999px;padding:9px 16px;font:600 13px var(--body);box-shadow:0 4px 14px rgba(0,0,0,.28);white-space:nowrap;cursor:pointer}
 #scroller{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 button,input,select,textarea{font:inherit;color:inherit}
 h1,h2,h3{font-family:var(--display);margin:0;line-height:1.08;text-wrap:balance}
@@ -154,6 +156,7 @@ details.help ol{margin:8px 0 4px;padding-left:20px;display:flex;flex-direction:c
   <span class="sync hidden" id="sync"></span>
   <button class="iconbtn" id="btnSettings" aria-label="Settings" title="Settings">⚙︎</button>
 </header>
+<button id="update-pill" class="hidden" type="button">New version available · Tap to refresh</button>
 <div id="scroller"><main id="view"></main></div>
 <nav class="tabs hidden" id="tabs" aria-label="Sections">
   <button data-tab="collection"><span class="i">▦</span>Collection</button>
@@ -687,9 +690,33 @@ function openSettings(){
   sh.querySelector('#out').onclick=async()=>{if(S.queue.length&&!confirm('Some changes haven’t synced yet and will be lost. Sign out anyway?'))return;await sb.auth.signOut();S.user=null;S.records=[];S.queue=[];persist();closeSheet();render()};
 }
 
+/* ---------- new release check ----------
+   The page carries its release marker (meta vc-version). While the app is open it quietly fetches a fresh
+   copy of the page now and then, and whenever it comes back into view; if that copy's marker differs, a pill
+   offers to load it. Nothing changes until Pete taps it. Same pattern as Bowling Bro'. */
+const APP_VERSION=(document.querySelector('meta[name="vc-version"]')||{}).content||'';
+let updateSeen=false,swReg=null;
+function checkForUpdate(){
+  if(updateSeen||!APP_VERSION||!/^https?:$/.test(location.protocol)||!navigator.onLine)return;
+  fetch(location.pathname+'?vcheck='+Date.now(),{cache:'no-store'}).then(r=>r.ok?r.text():'').then(t=>{
+    const m=t.match(/<meta name="vc-version" content="([^"]+)"/);
+    if(m&&m[1]!==APP_VERSION){updateSeen=true;$('#update-pill').classList.remove('hidden')}
+  },()=>{});
+  if(swReg)swReg.update().catch(()=>{});
+}
+$('#update-pill').addEventListener('click',async()=>{
+  const b=$('#update-pill');b.disabled=true;b.textContent='Updating…';
+  await flush().catch(()=>{});
+  try{const keys=await caches.keys();await Promise.all(keys.filter(k=>k.startsWith('vc-shell')).map(k=>caches.delete(k)))}catch(e){}
+  location.replace(location.pathname+'?v='+Date.now());   // a fresh address, so no cached copy is used
+});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkForUpdate()});
+setTimeout(checkForUpdate,4000);
+setInterval(checkForUpdate,3*60*1000);
+
 /* ---------- start ---------- */
 (async function init(){
-  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').then(r=>{swReg=r}).catch(()=>{});
   if(!sb){S.user=LS.get('vc-user',null);render();return}
   const {data}=await sb.auth.getSession();
   S.user=data.session?.user||LS.get('vc-user',null);
