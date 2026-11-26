@@ -2,15 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-26 14:50">
+<meta name="vc-version" content="2026-11-26 14:55">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Vinyl">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Archivo:wght@400;500;600;700&display=swap">
@@ -33,7 +32,7 @@
 *{box-sizing:border-box;min-width:0}
 html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none}
 html{background:var(--surface)}
-body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;position:fixed;top:0;right:0;left:0;height:var(--app-h,100%);display:flex;flex-direction:column}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 var(--body);-webkit-tap-highlight-color:transparent;position:fixed;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column}
 #update-pill{position:fixed;z-index:70;left:50%;transform:translateX(-50%);top:calc(var(--top) + 74px);background:#1a1a1a;color:#fff;border:0;border-radius:999px;padding:9px 16px;font:600 13px var(--body);box-shadow:0 4px 14px rgba(0,0,0,.28);white-space:nowrap;cursor:pointer}
 #scroller{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
 button,input,select,textarea{font:inherit;color:inherit}
@@ -168,24 +167,6 @@ details.help ol{margin:8px 0 4px;padding-left:20px;display:flex;flex-direction:c
 </nav>
 <div id="sheetRoot"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
-<script>
-/* iPhone Home Screen apps that draw under the status bar report a screen that is one status bar short,
-   which leaves a gap under the tab bar. In that mode, size the app to the real screen height instead. */
-(function(){
-  function fit(){
-    var standalone=window.navigator.standalone===true||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
-    var h=window.innerHeight;
-    if(standalone&&/iPhone|iPad|iPod/.test(navigator.userAgent)&&window.screen){
-      var portrait=window.innerHeight>=window.innerWidth;
-      var full=portrait?Math.max(screen.height,screen.width):Math.min(screen.height,screen.width);
-      if(full>h)h=full;
-    }
-    document.documentElement.style.setProperty('--app-h',h+'px');
-  }
-  fit();window.addEventListener('resize',fit);window.addEventListener('orientationchange',function(){setTimeout(fit,300)});
-  document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible')setTimeout(fit,50)});
-})();
-</script>
 <script>
 {
 'use strict';
