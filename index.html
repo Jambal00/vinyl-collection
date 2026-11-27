@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-26 22:45">
+<meta name="vc-version" content="2026-11-26 23:15">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -57,6 +57,8 @@ nav.tabs button.add .i{background:var(--accent);color:#fff;border-radius:50%;wid
 .stack{display:flex;flex-direction:column;gap:14px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600}
+.btn{text-decoration:none}
+.store-item .notice b{display:inline;font:inherit;font-weight:700}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn.dark{background:var(--deck);border-color:var(--deck);color:#fff}
 .btn.ghost{background:none}
@@ -96,6 +98,7 @@ label.chk input{width:22px;height:22px;accent-color:var(--accent)}
 .cand b{font:700 17px/1.15 var(--display);display:block}
 .facts{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:4px}
 .fact{font-size:12.5px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;white-space:nowrap;color:var(--muted)}
+.fact.claimed{background:var(--blue-soft);border-color:var(--blue);color:var(--blue);font-weight:700}
 .fact.desire{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
 .fact.key{color:var(--ink);border-color:var(--ink);font-weight:600}
 .src{font:700 10.5px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -174,6 +177,7 @@ details.help ol{margin:8px 0 4px;padding-left:20px;display:flex;flex-direction:c
 /* ---------- setup ---------- */
 const SUPABASE_URL='https://brgtnbkazftmetedbyup.supabase.co';
 const SUPABASE_KEY='sb_publishable_jrLTgVCk7bOdRWKftgI87Q_sBJAcYjJ';
+const GIFT_TOKEN=new URLSearchParams(location.search).get('g');
 const sb=window.supabase?window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'vc-auth'}}):null;
 const $=s=>document.querySelector(s);
 const view=$('#view'),sheetRoot=$('#sheetRoot');
@@ -183,7 +187,7 @@ const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}
 const uuid=()=>(crypto.randomUUID?crypto.randomUUID():'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&3|8)).toString(16)}));
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const GRADES=['','M','NM','VG+','VG','G+','G','F','P'];
-const S={user:null,records:LS.get('vc-records',[]),settings:LS.get('vc-settings',{shelf_rule:{order:['artist','year'],ignoreThe:true,variousSection:true},discogs_token:''}),queue:LS.get('vc-queue',[]),tab:LS.get('vc-tab','collection'),filters:{q:'',genre:'',decade:'',sort:'artist'},wq:'',shelfQ:'',focusId:null};
+const S={user:null,records:LS.get('vc-records',[]),settings:LS.get('vc-settings',{shelf_rule:{order:['artist','year'],ignoreThe:true,variousSection:true},discogs_token:''}),queue:LS.get('vc-queue',[]),tab:LS.get('vc-tab','collection'),claimed:LS.get('vc-claimed',[]),filters:{q:'',genre:'',decade:'',sort:'artist'},wq:'',shelfQ:'',focusId:null};
 
 /* ---------- storage & sync (works offline; queues writes) ---------- */
 function persist(){LS.set('vc-records',S.records);LS.set('vc-settings',S.settings);LS.set('vc-queue',S.queue);renderSync()}
@@ -200,7 +204,7 @@ async function flush(){
       let res;
       if(op.t==='upsert')res=await sb.from('vc_records').upsert(rowOf(op.r));
       else if(op.t==='delete')res=await sb.from('vc_records').delete().eq('id',op.id);
-      else if(op.t==='settings')res=await sb.from('vc_settings').upsert({owner:S.user.id,shelf_rule:op.s.shelf_rule,discogs_token:op.s.discogs_token||null});
+      else if(op.t==='settings')res=await sb.from('vc_settings').upsert({owner:S.user.id,shelf_rule:op.s.shelf_rule,discogs_token:op.s.discogs_token||null,display_name:op.s.display_name||null});
       if(res.error)throw res.error;
       S.queue.shift();persist();
     }catch(e){console.warn('sync failed',e);renderSync();return}
@@ -213,14 +217,15 @@ async function pull(){
   if(!sb||!S.user||!navigator.onLine)return;
   await flush();
   if(S.queue.length)return;
-  const [a,b]=await Promise.all([sb.from('vc_records').select('*').order('created_at'),sb.from('vc_settings').select('*').maybeSingle()]);
+  const [a,b,c]=await Promise.all([sb.from('vc_records').select('*').order('created_at'),sb.from('vc_settings').select('*').maybeSingle(),sb.rpc('vc_my_claimed')]);
   if(!a.error){S.records=a.data||[]}
-  if(!b.error&&b.data){S.settings={shelf_rule:b.data.shelf_rule||S.settings.shelf_rule,discogs_token:b.data.discogs_token||''}}
+  if(!b.error&&b.data){S.settings={shelf_rule:b.data.shelf_rule||S.settings.shelf_rule,discogs_token:b.data.discogs_token||'',display_name:b.data.display_name||''}}
+  if(!c.error&&Array.isArray(c.data)){S.claimed=c.data.map(x=>typeof x==='string'?x:(x.vc_my_claimed||Object.values(x)[0]));LS.set('vc-claimed',S.claimed)}
   persist();render();
   enrichCovers();
 }
 window.addEventListener('online',()=>{flush().then(pull)});
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')flush()});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!GIFT_TOKEN){flush().then(()=>{if(S.user&&!sheetRoot.firstChild)pull()})}});
 
 /* ---------- music catalogs ---------- */
 let mbLast=0;
@@ -412,6 +417,7 @@ function setTab(t){S.tab=t;LS.set('vc-tab',t);render();$('#scroller').scrollTop=
 document.querySelectorAll('nav.tabs button').forEach(b=>b.addEventListener('click',()=>setTab(b.dataset.tab)));
 $('#btnSettings').addEventListener('click',()=>{if(S.user)openSettings()});
 function render(){
+  if(GIFT_TOKEN){renderGift();return}
   if(!S.user){renderAuth();return}
   $('#tabs').classList.remove('hidden');
   document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===S.tab?'page':'false'));
@@ -475,7 +481,7 @@ function openRecord(id){
   const r=S.records.find(x=>x.id===id);if(!r)return;
   const link=safeUrl(sourceLink(r));
   const sh=openSheet('<div class="sheet-head"><div style="flex:1"><span class="eyebrow">'+(r.status==='owned'?'In my collection':'On my wishlist'+(r.any_pressing?' · any pressing':''))+'</span><h2>'+esc(r.title)+'</h2><p class="muted">'+esc(r.artist)+'</p></div><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
-    (r.status==='owned'&&r.pressing_confirmed===false?'<div class="notice warn"><b>Pressing not confirmed.</b> Saved with a best guess. <button class="btn small" id="fixP" style="margin-left:6px">Fix the pressing</button></div>':'')+
+    (r.status==='wanted'&&S.claimed.includes(r.id)?'<div class="notice info"><b>🎁 Someone in the family is getting you this.</b> Best not to buy it yourself.</div>':'')+(r.status==='owned'&&r.pressing_confirmed===false?'<div class="notice warn"><b>Pressing not confirmed.</b> Saved with a best guess. <button class="btn small" id="fixP" style="margin-left:6px">Fix the pressing</button></div>':'')+
     '<div class="detail">'+sleeve(r,'lg')+'<div class="stack">'+(r.status==='owned'?spotHTML(r.id):'')+
     '<dl class="kv">'+facts(r).map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>').join('')+((r.genres||[]).length?'<dt>Genre</dt><dd>'+esc([...(r.genres||[]),...(r.styles||[])].join(', '))+'</dd>':'')+
     (r.condition_media||r.condition_sleeve?'<dt>Condition</dt><dd>Record '+esc(r.condition_media||'—')+' · Sleeve '+esc(r.condition_sleeve||'—')+'</dd>':'')+(r.bought_where?'<dt>Bought</dt><dd>'+esc(r.bought_where)+(r.price_paid!=null&&r.price_paid!==''?' · $'+esc(Number(r.price_paid).toFixed(2)):'')+'</dd>':'')+
@@ -630,12 +636,13 @@ function openSaveForm(rec,opt){
 function renderWishlist(){
   const all=S.records.filter(r=>r.status==='wanted');const q=S.wq.toLowerCase();
   const list=all.filter(r=>!q||(r.title+' '+r.artist).toLowerCase().includes(q)).sort((a,b)=>(b.desire||0)-(a.desire||0)||artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true})));
-  view.innerHTML='<div class="stack"><div class="row" style="justify-content:space-between;align-items:baseline"><h2>Wishlist</h2><span class="muted count">'+all.length+' wanted</span></div>'+
+  view.innerHTML='<div class="stack"><div class="row" style="justify-content:space-between;align-items:center"><h2>Wishlist</h2><span class="row"><span class="muted count">'+all.length+' wanted</span><button class="btn small dark" id="shareBtn">Share</button></span></div>'+
     (all.length?'<input type="search" id="wq" placeholder="Search my wishlist" value="'+esc(S.wq)+'" aria-label="Search my wishlist"><p class="small muted">Saved on this phone too, so it opens even with no signal in the store.</p><div class="list">'+
-      list.map(r=>'<div class="store-item">'+sleeve(r)+'<div class="stack" style="gap:6px"><div><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+'</span></div><div class="small facts" style="margin:0">'+(r.desire?'<span class="fact desire">Desire '+esc(r.desire)+'</span>':'')+(r.any_pressing?'<span class="fact key">Any pressing</span>':(r.catno||r.country||r.year?'<span class="fact key">'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · '))+'</span>':''))+'</div><div class="row"><button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button><button class="btn small" data-open="'+esc(r.id)+'">Details</button>'+(safeUrl(r.buy_url)?'<a class="btn small" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy ↗</a>':'')+'</div></div></div>').join('')+'</div>'
+      list.map(r=>'<div class="store-item">'+sleeve(r)+'<div class="stack" style="gap:6px"><div><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+'</span></div><div class="small facts" style="margin:0">'+(S.claimed.includes(r.id)?'<span class="fact claimed">🎁 Claimed</span>':'')+(r.desire?'<span class="fact desire">Desire '+esc(r.desire)+'</span>':'')+(r.any_pressing?'<span class="fact key">Any pressing</span>':(r.catno||r.country||r.year?'<span class="fact key">'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · '))+'</span>':''))+'</div><div class="row"><button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button><button class="btn small" data-open="'+esc(r.id)+'">Details</button>'+(safeUrl(r.buy_url)?'<a class="btn small" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy ↗</a>':'')+'</div></div></div>').join('')+'</div>'
       :'<div class="empty"><div class="bigdisc"></div><h2>Nothing on the hunt yet</h2><p class="muted">Add the records you’re looking for, and check them on your phone when you’re digging through the bins.</p><button class="btn dark" id="go">♡ Add a record I want</button></div>')+'</div>';
   const wq=$('#wq');if(wq)wq.oninput=e=>{S.wq=e.target.value;const p=e.target.selectionStart;renderWishlist();const n=$('#wq');n.focus();n.setSelectionRange(p,p)};
   const go=$('#go');if(go)go.onclick=()=>openAddFlow({mode:'wanted'});
+  $('#shareBtn').onclick=openShare;
   view.querySelectorAll('[data-got]').forEach(b=>b.onclick=()=>gotIt(S.records.find(r=>r.id===b.dataset.got)));
   view.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openRecord(b.dataset.open));
 }
@@ -679,7 +686,7 @@ function renderCheck(){
   const res=$('#cres');
   const show=(matches,label)=>{
     if(!matches.length){res.innerHTML='<div class="result-big card"><b>Not in your lists</b><span class="muted">'+esc(label)+'</span><div class="row" style="justify-content:center"><button class="btn small" id="lk">Look it up</button></div></div>';$('#lk').onclick=()=>openAddFlow({mode:'owned',prefill:/^\d+$/.test(label)?{barcode:label}:{title:label}});return}
-    res.innerHTML=matches.map(r=>'<div class="result-big" style="background:'+(r.status==='wanted'?'var(--ok-soft);color:var(--ok)':'var(--warn-soft);color:var(--warn)')+'"><span class="eyebrow" style="color:inherit">'+(r.status==='wanted'?'On your wishlist':'You already own this')+'</span><b>'+esc(r.artist)+' — '+esc(r.title)+'</b><span>'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · ')||(r.any_pressing?'Any pressing':''))+'</span><div class="row" style="justify-content:center">'+(r.status==='wanted'?'<button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button>':'')+'<button class="btn small" data-open="'+esc(r.id)+'">Details</button></div></div>').join('');
+    res.innerHTML=matches.map(r=>'<div class="result-big" style="background:'+(r.status==='wanted'?'var(--ok-soft);color:var(--ok)':'var(--warn-soft);color:var(--warn)')+'"><span class="eyebrow" style="color:inherit">'+(r.status==='wanted'?(S.claimed.includes(r.id)?'On your wishlist · 🎁 someone’s getting you this, so don’t buy it':'On your wishlist'):'You already own this')+'</span><b>'+esc(r.artist)+' — '+esc(r.title)+'</b><span>'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · ')||(r.any_pressing?'Any pressing':''))+'</span><div class="row" style="justify-content:center">'+(r.status==='wanted'?'<button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button>':'')+'<button class="btn small" data-open="'+esc(r.id)+'">Details</button></div></div>').join('');
     res.querySelectorAll('[data-got]').forEach(b=>b.onclick=()=>gotIt(S.records.find(r=>r.id===b.dataset.got)));
     res.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>openRecord(b.dataset.open));
   };
@@ -697,11 +704,12 @@ function openSettings(){
   const sh=openSheet('<div class="sheet-head"><h2>Settings</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
     '<div class="card stack"><h3>Discogs</h3><p class="small muted">Optional. When MusicBrainz can’t find a record, the app tries Discogs. Get a free token at discogs.com → Settings → Developers → Generate new token, then paste it here. It’s stored in your account only.</p>'+
     '<form id="fTok" class="toolbar"><input type="password" id="tok" autocomplete="off" placeholder="Paste your Discogs token" value="'+esc(S.settings.discogs_token||'')+'" aria-label="Discogs token"><button class="btn dark">Save</button></form></div>'+
-    '<div class="card stack"><h3>Shelf order</h3><p>'+esc(ruleText(S.settings.shelf_rule))+'</p><button class="btn small" id="rule" style="align-self:flex-start">Change</button></div>'+
+    '<div class="card stack"><h3>Gift &amp; share links</h3><p class="small muted">Send family your top 10 with buy links, or let friends browse your records.</p><button class="btn small" id="share2" style="align-self:flex-start">Manage share links</button></div>'+'<div class="card stack"><h3>Shelf order</h3><p>'+esc(ruleText(S.settings.shelf_rule))+'</p><button class="btn small" id="rule" style="align-self:flex-start">Change</button></div>'+
     '<div class="card stack"><h3>Backup</h3><p class="small muted">'+owned+' in the collection, '+wanted+' on the wishlist.</p><button class="btn small" id="exp" style="align-self:flex-start">Download a copy (CSV)</button></div>'+
     '<div class="card stack"><h3>Account</h3><p class="small">Signed in as <b>'+esc(S.user?.email||'')+'</b></p><p class="small muted">App version '+esc(APP_VERSION)+'</p><button class="btn small" id="out" style="align-self:flex-start">Sign out</button></div>');
   sh.querySelector('#x').onclick=closeSheet;
   sh.querySelector('#fTok').onsubmit=e=>{e.preventDefault();S.settings.discogs_token=sh.querySelector('#tok').value.trim();saveSettings();toast(S.settings.discogs_token?'Discogs token saved':'Discogs token removed')};
+  sh.querySelector('#share2').onclick=openShare;
   sh.querySelector('#rule').onclick=openShelfRule;
   sh.querySelector('#exp').onclick=()=>{
     const cols=['status','artist','title','year','label','catno','country','format','barcode','genres','condition_media','condition_sleeve','bought_where','price_paid','notes'];
@@ -736,9 +744,111 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 setTimeout(checkForUpdate,4000);
 setInterval(checkForUpdate,3*60*1000);
 
+/* ---------- share links (Pete's side) ---------- */
+const LINK_KINDS=[
+  {k:'guessers',t:'Family gift list',d:'Your current top 10 with buy links. Family taps “I’m getting this” so nobody doubles up, and you never see who.'},
+  {k:'insiders',t:'Family gift list + my collection',d:'The same top 10, plus everything you already own, for family who like to pick a surprise.'},
+  {k:'friends',t:'My collection for friends',d:'Read-only: your records as a cover grid. No wishlist, no prices.'}];
+const linkUrl=t=>location.origin+location.pathname+'?g='+t;
+async function openShare(){
+  const sh=openSheet('<div class="sheet-head"><h2>Share</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div><div id="shareBody" class="stack"><div class="row"><span class="spinner"></span>Loading your links…</div></div>');
+  sh.querySelector('#x').onclick=closeSheet;
+  const body=sh.querySelector('#shareBody');
+  if(!navigator.onLine||!sb){body.innerHTML='<div class="notice warn">Share links need a connection. Try again when you’re back online.</div>';return}
+  const {data,error}=await sb.from('vc_share_links').select('*').eq('active',true).order('created_at');
+  if(error){body.innerHTML='<div class="notice err">Couldn’t load your links: '+esc(error.message)+'</div>';return}
+  const links=data||[];
+  body.innerHTML='<form id="fName" class="card stack" style="gap:8px"><label class="f">Your name on shared pages<input type="text" id="dn" value="'+esc(S.settings.display_name||'')+'" placeholder="e.g. Pete, or Dad"></label><button class="btn small" style="align-self:flex-start">Save name</button></form>'+
+    LINK_KINDS.map(K=>{const l=links.find(x=>x.kind===K.k);return '<div class="card stack" style="gap:8px"><h3>'+esc(K.t)+'</h3><p class="small muted">'+esc(K.d)+'</p>'+
+      (l?'<input type="text" readonly value="'+esc(linkUrl(l.token))+'" aria-label="Link"><div class="row"><button class="btn small primary" data-send="'+esc(l.token)+'">Send link</button><button class="btn small" data-copy="'+esc(l.token)+'">Copy</button><a class="btn small" href="'+esc(linkUrl(l.token))+'" target="_blank" rel="noopener">Preview ↗</a><button class="btn small ghost" data-new="'+K.k+'" data-old="'+esc(l.id)+'">New link</button><button class="btn small ghost" data-off="'+esc(l.id)+'" style="color:var(--accent-ink)">Turn off</button></div>'
+         :'<button class="btn small dark" data-make="'+K.k+'" style="align-self:flex-start">Create link</button>')+'</div>'}).join('')+
+    '<p class="small muted">“New link” stops the old one working, for when a link has been passed further than you meant.</p>';
+  body.querySelectorAll('input[readonly]').forEach(i=>i.addEventListener('focus',()=>i.select()));
+  body.querySelector('#fName').onsubmit=e=>{e.preventDefault();S.settings.display_name=body.querySelector('#dn').value.trim();saveSettings();toast('Name saved')};
+  const again=()=>openShare();
+  body.querySelectorAll('[data-make]').forEach(b=>b.onclick=async()=>{b.disabled=true;const {error}=await sb.from('vc_share_links').insert({kind:b.dataset.make});if(error){b.disabled=false;return toast('Couldn’t create the link: '+esc(error.message))}again()});
+  body.querySelectorAll('[data-off]').forEach(b=>b.onclick=async()=>{b.disabled=true;await sb.from('vc_share_links').update({active:false}).eq('id',b.dataset.off);toast('Link turned off');again()});
+  body.querySelectorAll('[data-new]').forEach(b=>b.onclick=async()=>{b.disabled=true;await sb.from('vc_share_links').update({active:false}).eq('id',b.dataset.old);await sb.from('vc_share_links').insert({kind:b.dataset.new});toast('New link made; the old one no longer works');again()});
+  body.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(linkUrl(b.dataset.copy));toast('Link copied')}catch(e){toast('Press and hold the link to copy it')}});
+  body.querySelectorAll('[data-send]').forEach(b=>b.onclick=async()=>{const url=linkUrl(b.dataset.send);const whos=S.settings.display_name?possessive(S.settings.display_name):'my';
+    if(navigator.share){try{await navigator.share({title:'Vinyl list',text:'Here’s '+whos+' vinyl list:',url})}catch(e){}}
+    else{try{await navigator.clipboard.writeText(url);toast('Link copied')}catch(e){toast('Press and hold the link to copy it')}}});
+}
+
+/* ---------- gift page (family & friends; no sign-in) ---------- */
+const G={data:null,tab:'wish',q:''};
+const giftSecrets=()=>LS.get('vc-gift-secrets',{});
+const possessive=n=>n?(/s$/i.test(n)?n+'’':n+'’s'):'';
+async function renderGift(refresh){
+  $('#tabs').classList.add('hidden');$('#btnSettings').classList.add('hidden');$('#sync').classList.add('hidden');
+  if(!sb){view.innerHTML='<div class="notice err">Can’t reach the list right now. Check your connection and try again.</div>';return}
+  if(!G.data||refresh){
+    if(!G.data)view.innerHTML='<div class="row" style="justify-content:center;padding:40px"><span class="spinner"></span>Loading…</div>';
+    const {data,error}=await sb.rpc('vc_gift_list',{p_token:GIFT_TOKEN});
+    if(error){if(!G.data){view.innerHTML='<div class="notice err">Couldn’t load the list. <button class="btn small" id="rt">Try again</button></div>';$('#rt').onclick=()=>renderGift(true)}return}
+    G.data=data;
+  }
+  const d=G.data;
+  if(!d||!d.ok){view.innerHTML='<div class="empty"><div class="bigdisc"></div><h2>This link isn’t active anymore</h2><p class="muted">Ask for a fresh link.</p></div>';return}
+  const who=d.name||'';const whos=possessive(who);
+  document.title=(whos?whos+' ':'')+(d.kind==='friends'?'records':'vinyl wish list');
+  if(d.kind==='friends'){showOwned(whos?whos+' record collection':'Record collection','');return}
+  if(d.kind==='insiders'&&G.tab==='owned'){showOwned('Already in '+(whos?whos+' ':'the ')+'collection',segHTML(d));return}
+  const wish=d.wanted||[];const sec=giftSecrets();
+  const open=wish.filter(w=>!w.claimer_name),taken=wish.filter(w=>w.claimer_name);
+  const card=w=>{const mine=!!sec[w.id];const buy=safeUrl(w.buy_url)?'<a class="btn small" href="'+esc(w.buy_url)+'" target="_blank" rel="noopener">Buy ↗</a>':'';
+    return '<div class="store-item">'+sleeve(w)+'<div class="stack" style="gap:6px"><div><b>'+esc(w.title)+'</b><span class="muted">'+esc(w.artist)+'</span></div>'+
+      '<div class="small facts" style="margin:0">'+(w.desire?'<span class="fact desire">Wants it '+esc(w.desire)+'/10</span>':'')+(w.any_pressing?'<span class="fact">Any version is fine</span>':(w.catno?'<span class="fact key">'+esc(w.catno)+'</span>':''))+'</div>'+
+      (w.claimer_name
+        ?(mine?'<div class="notice ok" style="padding:8px 10px"><b>You’re getting this.</b></div><div class="row">'+buy+'<button class="btn small ghost" data-undo="'+esc(w.id)+'">Undo</button></div>'
+              :'<div class="notice info" style="padding:8px 10px"><b>'+esc(w.claimer_name)+'</b> is getting this.</div>')
+        :'<div class="row"><button class="btn small primary" data-claim="'+esc(w.id)+'">🎁 I’m getting this</button>'+buy+'</div>')+
+      '</div></div>'};
+  view.innerHTML='<div class="stack">'+segHTML(d)+
+    '<div class="stack" style="gap:6px"><h2>'+esc(whos?whos+' vinyl wish list':'Vinyl wish list')+'</h2><p class="muted">The records '+esc(who||'they')+' want'+(who?'s':'')+' most right now, best first. Tap <b>I’m getting this</b> so nobody doubles up. '+esc(who||'They')+' won’t see who.</p></div>'+
+    (open.length?'<div class="list">'+open.map(card).join('')+'</div>':'<div class="notice ok">Everything on the list is spoken for. Nice work!</div>')+
+    (taken.length?'<h3 style="margin-top:8px">Already spoken for</h3><div class="list">'+taken.map(card).join('')+'</div>':'')+'</div>';
+  bindSeg();
+  view.querySelectorAll('[data-claim]').forEach(b=>b.onclick=()=>claimGift(b.dataset.claim));
+  view.querySelectorAll('[data-undo]').forEach(b=>b.onclick=()=>undoGift(b.dataset.undo));
+}
+function segHTML(d){return d.kind==='insiders'?'<div class="seg" role="group" aria-label="Show"><button data-gt="wish" aria-pressed="'+(G.tab==='wish')+'">Wish list</button><button data-gt="owned" aria-pressed="'+(G.tab==='owned')+'">Already has ('+(d.owned||[]).length+')</button></div>':''}
+function bindSeg(){view.querySelectorAll('[data-gt]').forEach(b=>b.onclick=()=>{G.tab=b.dataset.gt;G.q='';renderGift();$('#scroller').scrollTop=0})}
+function showOwned(title,seg){
+  const list=G.data.owned||[];
+  view.innerHTML='<div class="stack">'+seg+'<div class="row" style="justify-content:space-between;align-items:baseline"><h2>'+esc(title)+'</h2><span class="muted count">'+list.length+' records</span></div><input type="search" id="gq" placeholder="Search artist or title" value="'+esc(G.q)+'" aria-label="Search records"><div id="ownedGrid"></div></div>';
+  const draw=()=>{const q=G.q.toLowerCase();const l=list.filter(r=>!q||(r.title+' '+r.artist).toLowerCase().includes(q));
+    $('#ownedGrid').innerHTML=l.length?'<div class="covers">'+l.map(r=>'<div class="tile" style="cursor:default">'+sleeve(r)+'<b>'+esc(r.title)+'</b><span>'+esc(r.artist)+(r.year?' · '+esc(r.year):'')+'</span></div>').join('')+'</div>':'<p class="muted">Nothing matches.</p>'};
+  draw();$('#gq').oninput=e=>{G.q=e.target.value;draw()};bindSeg();
+}
+function claimGift(id){
+  const w=(G.data.wanted||[]).find(x=>x.id===id);if(!w)return;
+  const sh=openSheet('<div class="sheet-head"><h2>Getting “'+esc(w.title)+'”</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div><p>Your name shows to the rest of the family so nobody else buys it. '+esc(G.data.name||'They')+' won’t see it.</p>'+
+    '<form id="fClaim" class="stack"><label class="f">Your name<input type="text" id="gn" required maxlength="60" autocomplete="given-name" value="'+esc(LS.get('vc-giver-name',''))+'" autofocus></label><button class="btn primary block">🎁 I’m getting this</button></form>');
+  sh.querySelector('#x').onclick=closeSheet;
+  sh.querySelector('#fClaim').onsubmit=async e=>{e.preventDefault();const name=sh.querySelector('#gn').value.trim();if(!name)return;LS.set('vc-giver-name',name);
+    const btn=sh.querySelector('button.primary');btn.disabled=true;btn.textContent='Saving…';
+    const {data,error}=await sb.rpc('vc_gift_claim',{p_token:GIFT_TOKEN,p_record:id,p_name:name});
+    closeSheet();
+    if(error||!data){toast('Couldn’t save that. Check your connection and try again.');return}
+    if(data.ok){const s=giftSecrets();s[id]=data.secret;LS.set('vc-gift-secrets',s);toast('<b>It’s yours.</b> Everyone else will see you’re getting it.',6000)}
+    else if(data.reason==='taken')toast('<b>'+esc(data.name)+'</b> just claimed that one.');
+    else if(data.reason==='gone')toast('That record isn’t on the list anymore.');
+    else toast('This link isn’t active anymore.');
+    renderGift(true);
+  };
+}
+async function undoGift(id){
+  const s=giftSecrets();if(!s[id])return;
+  const {data,error}=await sb.rpc('vc_gift_unclaim',{p_token:GIFT_TOKEN,p_record:id,p_secret:s[id]});
+  if(error){toast('Couldn’t undo that. Check your connection and try again.');return}
+  delete s[id];LS.set('vc-gift-secrets',s);toast(data&&data.ok?'Okay, it’s back on the list.':'That claim was already gone.');renderGift(true);
+}
+
 /* ---------- start ---------- */
 (async function init(){
   if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').then(r=>{swReg=r}).catch(()=>{});
+  if(GIFT_TOKEN){renderGift();document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')renderGift(true)});return}
   if(!sb){S.user=LS.get('vc-user',null);render();return}
   const {data}=await sb.auth.getSession();
   S.user=data.session?.user||LS.get('vc-user',null);
