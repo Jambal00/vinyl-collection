@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-26 23:15">
+<meta name="vc-version" content="2026-11-27 00:05">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -268,7 +268,7 @@ async function searchBarcode(code){
   return {cands:out,errs};
 }
 async function searchText(artist,title){
-  const out=[];const errs=[];const qv=s=>'"'+String(s).replace(/["\\]/g,' ').trim()+'"';
+  const out=[];const errs=[];const qv=s=>'"'+String(s).replace(/["\\/]/g,' ').trim()+'"';
   const parts=[];if(artist)parts.push('artist:'+qv(artist));if(title)parts.push('release:'+qv(title));
   if(parts.length){try{const j=await mb('release/?query='+encodeURIComponent(parts.join(' AND '))+'&limit=40');out.push(...(j.releases||[]).map(mbCand))}catch(e){errs.push(e.message)}}
   if(S.settings.discogs_token){try{let p='database/search?type=release&per_page=25';if(artist)p+='&artist='+encodeURIComponent(artist);if(title)p+='&release_title='+encodeURIComponent(title);const j=await dg(p);if(j)out.push(...(j.results||[]).map(dgCand))}catch(e){errs.push(e.message)}}
@@ -301,21 +301,44 @@ async function fetchDetails(c){
 }
 function sourceLink(r){if(r.source==='musicbrainz'&&r.source_id)return 'https://musicbrainz.org/release/'+r.source_id;if(r.source==='discogs'&&r.source_id)return 'https://www.discogs.com/release/'+r.source_id;return ''}
 
-/* ---------- covers for records added without a lookup (e.g. imported lists) ---------- */
-const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^the\s+/,'').replace(/&/g,'and').replace(/[^a-z0-9]/g,'');
+/* ---------- covers for records added without a lookup (e.g. imported lists) ----------
+   Matches loosely: ignores words like "Vol", "Remastered" and "Anniversary", reads Roman numerals as numbers,
+   and accepts initials ("SRV & DT" = Stevie Ray Vaughan & Double Trouble, "BB" = B.B.). A record is only
+   marked as tried after MusicBrainz actually answered, so a busy moment doesn't leave it coverless. */
+const ROMAN={i:'1',ii:'2',iii:'3',iv:'4',v:'5',vi:'6',vii:'7',viii:'8',ix:'9',x:'10'};
+const NOISE=new Set(['the','a','an','of','and','vol','volume','volumes','remastered','remaster','anniversary','edition','deluxe','expanded','lp','vinyl','album','record','reissue','super']);
+const toks=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/&/g,' and ').split(/[^a-z0-9]+/).filter(Boolean).map(t=>ROMAN[t]||t);
+function tokScore(want,have){
+  const w=toks(want).filter(t=>!NOISE.has(t)),h=toks(have);if(!w.length)return 0;
+  const hs=new Set(h);const initials=h.map(t=>t[0]).join('');const joined=h.join('');
+  return w.filter(t=>hs.has(t)||(t.length>1&&initials.includes(t))||(t.length>2&&joined.includes(t))).length/w.length;
+}
+const ALIASES={'white album':'The Beatles'};
+async function findCover(artist,title){
+  const lucene=a=>[...new Set(a)].filter(t=>/^[a-z0-9]+$/.test(t)).join(' OR ');
+  const tw=toks(ALIASES[String(title).toLowerCase().replace(/^the\s+/,'').trim()]||title).filter(t=>!NOISE.has(t));
+  const aw=toks(artist);const aj=aw.join('');
+  if(!tw.length)return {hit:null,answered:true};
+  const q='releasegroup:('+lucene(tw)+')'+(aw.length?' AND artist:('+lucene([...aw.filter(t=>!NOISE.has(t)||aw.length===1),aj])+')':'');
+  let j;try{j=await mb('release-group/?query='+encodeURIComponent(q)+'&limit=25')}catch(e){return {hit:null,answered:false}}
+  const wantTitle=ALIASES[String(title).toLowerCase().replace(/^the\s+/,'').trim()]||title;
+  const ranked=(j['release-groups']||[]).map(g=>({g,t:tokScore(wantTitle,g.title),a:tokScore(artist,credit(g['artist-credit'])),r:tokScore(g.title,wantTitle)}))
+    .filter(x=>x.t>=0.6&&x.a>=0.5&&x.g['primary-type']!=='Single')
+    .sort((x,y)=>(y.t+y.a+0.5*y.r)-(x.t+x.a+0.5*x.r)||((y.g['primary-type']==='Album')-(x.g['primary-type']==='Album'))||(y.g.score||0)-(x.g.score||0));
+  return {hit:ranked[0]?ranked[0].g:null,answered:true};
+}
 let enriching=false;
 async function enrichCovers(){
   if(enriching||!navigator.onLine)return;enriching=true;
-  const tried=LS.get('vc-enrich-tried',{});
+  const tried=LS.get('vc-enrich-tried-v2',{});
   try{
     for(const r of S.records.filter(x=>!x.cover_url&&!x.source_id&&!tried[x.id]&&x.title)){
-      tried[r.id]=1;LS.set('vc-enrich-tried',tried);
-      let res;try{res=await searchText(r.artist,r.title)}catch(e){continue}
-      const want=norm(r.title),art=norm(r.artist);
-      const hit=res.cands.find(c=>c.source==='musicbrainz'&&c.rgid&&norm(c.artist).includes(art.slice(0,6))&&(norm(c.title)===want||norm(c.title).includes(want)||want.includes(norm(c.title))));
+      const {hit,answered}=await findCover(r.artist,r.title);
+      if(!answered)break;            // MusicBrainz busy or offline: stop and try again next time
+      tried[r.id]=1;LS.set('vc-enrich-tried-v2',tried);
       if(!hit)continue;
       const cur=S.records.find(x=>x.id===r.id);if(!cur||cur.cover_url)continue;
-      saveRecord(Object.assign({},cur,{cover_url:'https://coverartarchive.org/release-group/'+hit.rgid+'/front-500',cover_alt_url:'https://coverartarchive.org/release/'+hit.id+'/front-500',release_group_id:hit.rgid,year:cur.year||hit.year||null,compilation:cur.compilation||hit.compilation}));
+      saveRecord(Object.assign({},cur,{cover_url:'https://coverartarchive.org/release-group/'+hit.id+'/front-500',cover_alt_url:null,release_group_id:hit.id,year:cur.year||parseInt((hit['first-release-date']||'').slice(0,4))||null,compilation:cur.compilation||(hit['secondary-types']||[]).some(t=>/compilation|soundtrack/i.test(t))}));
       if(['wishlist','collection'].includes(S.tab)&&!sheetRoot.firstChild)render();
     }
   }finally{enriching=false}
@@ -481,7 +504,7 @@ function openRecord(id){
   const r=S.records.find(x=>x.id===id);if(!r)return;
   const link=safeUrl(sourceLink(r));
   const sh=openSheet('<div class="sheet-head"><div style="flex:1"><span class="eyebrow">'+(r.status==='owned'?'In my collection':'On my wishlist'+(r.any_pressing?' · any pressing':''))+'</span><h2>'+esc(r.title)+'</h2><p class="muted">'+esc(r.artist)+'</p></div><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
-    (r.status==='wanted'&&S.claimed.includes(r.id)?'<div class="notice info"><b>🎁 Someone in the family is getting you this.</b> Best not to buy it yourself.</div>':'')+(r.status==='owned'&&r.pressing_confirmed===false?'<div class="notice warn"><b>Pressing not confirmed.</b> Saved with a best guess. <button class="btn small" id="fixP" style="margin-left:6px">Fix the pressing</button></div>':'')+
+    (r.status==='wanted'&&S.claimed.includes(r.id)?'<div class="notice info"><b>🎁 Someone in the family is getting you this.</b> Best not to buy it yourself.</div>':'')+(!r.cover_url?'<div class="notice info">No cover yet. <button class="btn small" id="findCover" style="margin-left:6px">Find the cover</button></div>':'')+(r.status==='owned'&&r.pressing_confirmed===false?'<div class="notice warn"><b>Pressing not confirmed.</b> Saved with a best guess. <button class="btn small" id="fixP" style="margin-left:6px">Fix the pressing</button></div>':'')+
     '<div class="detail">'+sleeve(r,'lg')+'<div class="stack">'+(r.status==='owned'?spotHTML(r.id):'')+
     '<dl class="kv">'+facts(r).map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>').join('')+((r.genres||[]).length?'<dt>Genre</dt><dd>'+esc([...(r.genres||[]),...(r.styles||[])].join(', '))+'</dd>':'')+
     (r.condition_media||r.condition_sleeve?'<dt>Condition</dt><dd>Record '+esc(r.condition_media||'—')+' · Sleeve '+esc(r.condition_sleeve||'—')+'</dd>':'')+(r.bought_where?'<dt>Bought</dt><dd>'+esc(r.bought_where)+(r.price_paid!=null&&r.price_paid!==''?' · $'+esc(Number(r.price_paid).toFixed(2)):'')+'</dd>':'')+
@@ -494,6 +517,7 @@ function openRecord(id){
   sh.querySelector('#del').onclick=()=>confirmSheet('Remove “'+r.title+'”?','It comes off your '+(r.status==='owned'?'collection':'wishlist')+'. You can add it again later.','Remove',()=>{deleteRecord(r.id);closeSheet();render();toast('Removed '+esc(r.title))});
   const fp=sh.querySelector('#fixP');if(fp)fp.onclick=()=>openAddFlow({mode:'owned',fix:r,prefill:{artist:r.artist,title:r.title,barcode:r.barcode}});
   const got=sh.querySelector('#got');if(got)got.onclick=()=>gotIt(r);
+  const fc=sh.querySelector('#findCover');if(fc)fc.onclick=()=>openAddFlow({mode:r.status,fix:r,keepStatus:true,prefill:{artist:r.artist,title:r.title,barcode:r.barcode}});
   const sg=sh.querySelector('#shelfGo');if(sg)sg.onclick=()=>{S.focusId=r.id;closeSheet();setTab('shelf')};
 }
 function confirmSheet(title,body,yes,onYes){const sh=openSheet('<h2>'+esc(title)+'</h2><p>'+esc(body)+'</p><div class="row"><button class="btn primary" id="yes">'+esc(yes)+'</button><button class="btn" id="no">Cancel</button></div>');sh.querySelector('#yes').onclick=onYes;sh.querySelector('#no').onclick=closeSheet}
@@ -516,7 +540,7 @@ function renderAdd(){
 }
 function openAddFlow(opts){
   const o=Object.assign({mode:'owned',prefill:{}},opts);
-  const title=o.fix?(o.fromWish?'Which pressing did you find?':'Fix the pressing'):(o.mode==='wanted'?'Add to my wishlist':'Add to my collection');
+  const title=o.fix?(o.fromWish?'Which pressing did you find?':o.keepStatus?'Find the cover':'Fix the pressing'):(o.mode==='wanted'?'Add to my wishlist':'Add to my collection');
   const startWith=o.prefill.artist||o.prefill.title?'search':'scan';
   const sh=openSheet('<div class="sheet-head"><h2>'+esc(title)+'</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
     '<div class="seg" role="group" aria-label="How to find it"><button data-m="scan">Scan</button><button data-m="search">Search</button><button data-m="manual">By hand</button></div><div id="pane" class="stack"></div><div id="results" class="stack"></div>');
@@ -587,7 +611,7 @@ function openAddFlow(opts){
     busy('Getting cover art and tracklist…');
     let d;try{d=await fetchDetails(c)}catch(e){results.innerHTML='<div class="notice err">'+(e.message==='offline'?'Lost the connection while fetching details.':esc(e.message))+' <button class="btn small" id="retry">Try again</button></div>';results.querySelector('#retry').onclick=()=>pick(c,confirmed);return}
     const base=o.fix||{};
-    const rec=Object.assign({},base,d,{id:base.id||uuid(),status:o.mode==='wanted'?'wanted':'owned',pressing_confirmed:confirmed,created_at:base.created_at||new Date().toISOString()});
+    const rec=Object.assign({},base,d,{id:base.id||uuid(),status:o.mode==='wanted'?'wanted':'owned',desire:base.desire??null,buy_url:base.buy_url??null,any_pressing:base.any_pressing??false,pressing_confirmed:confirmed,created_at:base.created_at||new Date().toISOString()});
     if(!rec.barcode&&o.prefill.barcode)rec.barcode=o.prefill.barcode;
     openSaveForm(rec,{fromWish:o.fromWish,base:o.fix});
   }
