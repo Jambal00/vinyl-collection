@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 12:10">
+<meta name="vc-version" content="2026-11-27 12:20">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -182,7 +182,7 @@ details.help ol{margin:8px 0 4px;padding-left:20px;display:flex;flex-direction:c
   <button data-tab="collection"><span class="i">▦</span>Collection</button>
   <button data-tab="wishlist"><span class="i">♡</span>Wishlist</button>
   <button data-tab="add" class="add"><span class="i">+</span>Add</button>
-  <button data-tab="shelf"><span class="i">▥</span>Shelf</button>
+  <button data-tab="value"><span class="i">$</span>Value</button>
   <button data-tab="check"><span class="i">⌕</span>Check</button>
 </nav>
 <div id="sheetRoot"></div>
@@ -470,8 +470,7 @@ function renderValue(){
   else list.sort((a,b)=>ak(a).localeCompare(ak(b))||(a.year||0)-(b.year||0));
   const noTok=!S.settings.discogs_token;
   view.innerHTML='<div class="stack">'+
-    '<div class="row" style="justify-content:space-between;align-items:center"><button class="btn small ghost" id="vBack" style="padding-left:0">‹ Collection</button><button class="btn small" id="vChk" data-vbtn>'+(noTok?'Set up Discogs':'Check values')+'</button></div>'+
-    '<h2>Value</h2>'+
+    '<div class="row" style="justify-content:space-between;align-items:center"><h2>Value</h2><button class="btn small" id="vChk" data-vbtn>'+(noTok?'Set up Discogs':'Check values')+'</button></div>'+
     (noTok?'<div class="notice info">Values come from Discogs. Add your free Discogs token in Settings, then tap <b>Check values</b>.</div>':'')+
     '<div class="vstats"><div><span class="eyebrow">Collection</span><b>'+(v.valued?'≈ '+money(Math.round(v.total)):'—')+'</b><span class="small muted">'+v.valued+' of '+v.owned+' priced</span></div>'+
     '<div><span class="eyebrow">You paid</span><b>'+(paidOf.length?money(Math.round(paid)):'—')+'</b><span class="small muted">'+(paidOf.length?'now worth '+money(Math.round(paidVal))+' ('+paidOf.length+' record'+(paidOf.length>1?'s':'')+')':'add prices when you edit a record')+'</span></div>'+
@@ -482,7 +481,6 @@ function renderValue(){
     '<select id="vSort" aria-label="Sort" style="width:auto">'+[['value',vw==='owned'?'Highest value':'Highest price'],['change','Biggest change'],['artist','Artist']].map(o=>'<option value="'+o[0]+'"'+(o[0]===vs?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'+
     (list.length?listHTML(list,vw):'<p class="muted">No records here yet.</p>')+
     '<p class="small muted">From Discogs. Collection: the suggested price for each record’s grade, or the lowest listed price. Wishlist: the lowest listed price. Discogs doesn’t share actual sale prices, so this is a guide, not an appraisal.</p></div>';
-  $('#vBack').onclick=()=>setTab('collection');
   $('#vChk').onclick=()=>noTok?openSettings():checkValues();
   $('#vSort').onchange=e=>{S.vsort=e.target.value;renderValue()};
   view.querySelectorAll('[data-vw]').forEach(b=>b.onclick=()=>{S.vwhich=b.dataset.vw;renderValue()});
@@ -541,7 +539,7 @@ function render(){
   if(GIFT_TOKEN){renderGift();return}
   if(!S.user){renderAuth();return}
   $('#tabs').classList.remove('hidden');
-  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===(S.tab==='value'?'collection':S.tab)?'page':'false'));
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===(S.tab==='shelf'?'collection':S.tab)?'page':'false'));
   ({collection:renderCollection,value:renderValue,wishlist:renderWishlist,add:renderAdd,shelf:renderShelf,check:renderCheck}[S.tab]||renderCollection)();
   renderSync();
 }
@@ -570,6 +568,8 @@ function listHTML(list,which){const wl=which==='wanted';
   const priced=list.filter(r=>r.value_amount!=null),tot=priced.reduce((t,r)=>t+Number(r.value_amount),0);
   return '<div class="vlist"><div class="lhead"><span></span><span>Record</span><span>'+(wl?'Desire':'Grade')+'</span><span>'+(wl?'From':'Value')+'</span></div>'+list.map(r=>'<button class="lrow" data-id="'+esc(r.id)+'">'+sleeve(r)+'<span class="lt"><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+(r.year?' · '+r.year:'')+'</span></span><span class="lg">'+esc((wl?r.desire:r.condition_media)||'—')+'</span><span class="lv">'+(r.value_amount!=null?money(r.value_amount)+valueTrend(r):'<span class="muted">'+(r.value_checked_at?(r.discogs_match==='none'?'not found':'none listed'):'—')+'</span>')+(r.value_amount!=null&&r.discogs_match==='master'?'<small class="muted">any pressing</small>':'')+'</span></button>').join('')+
     '<div class="lfoot"><span>'+priced.length+' of '+list.length+' priced'+(wl?' · cheapest copies added up':'')+'</span><b>'+money(Math.round(tot*100)/100)+'</b></div></div>'}
+function collSegHTML(on){return '<div class="vseg" role="group" aria-label="Show the collection as"><button data-cv="collection" aria-pressed="'+(on==='collection')+'">Covers</button><button data-cv="shelf" aria-pressed="'+(on==='shelf')+'">Shelf</button></div>'}
+function bindCollSeg(){view.querySelectorAll('[data-cv]').forEach(b=>b.onclick=()=>{if(b.dataset.cv!==S.tab)setTab(b.dataset.cv)})}
 function renderCollection(){
   const f=S.filters;const owned=S.records.filter(r=>r.status==='owned');
   if(!owned.length){view.innerHTML='<div class="empty"><div class="bigdisc"></div><h2>Start with the first record</h2><p class="muted">Scan the barcode on the back, or search by artist and title.</p><button class="btn primary" id="go">+ Add a record</button></div>';$('#go').onclick=()=>setTab('add');return}
@@ -581,7 +581,7 @@ function renderCollection(){
   else list.sort((a,b)=>artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true}))||(a.year||0)-(b.year||0));
   const unconf=owned.filter(r=>r.pressing_confirmed===false).length;
   view.innerHTML='<div class="stack">'+
-    '<div class="row" style="justify-content:space-between;align-items:center"><h2>Collection</h2><span class="muted count">'+list.length+(list.length!==owned.length?' of '+owned.length:'')+' records</span></div>'+
+    '<div class="row" style="justify-content:space-between;align-items:center"><h2>Collection</h2>'+collSegHTML('collection')+'</div><span class="muted count small">'+list.length+(list.length!==owned.length?' of '+owned.length:'')+' records</span>'+
     '<input type="search" id="q" placeholder="Search artist, title or label" value="'+esc(f.q)+'" aria-label="Search the collection">'+
     '<div class="filters"><select id="fg" aria-label="Genre"><option value="">All genres</option>'+genresAll().map(g=>'<option'+(g===f.genre?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select>'+
     '<select id="fd" aria-label="Era"><option value="">All eras</option>'+decadesAll().map(d=>'<option'+(d===f.decade?' selected':'')+'>'+esc(d)+'</option>').join('')+'</select>'+
@@ -592,7 +592,7 @@ function renderCollection(){
     '</div>';
   $('#q').oninput=e=>{f.q=e.target.value;const pos=e.target.selectionStart;renderCollection();const q=$('#q');q.focus();q.setSelectionRange(pos,pos)};
   $('#fg').onchange=e=>{f.genre=e.target.value;renderCollection()};$('#fd').onchange=e=>{f.decade=e.target.value;renderCollection()};$('#fs').onchange=e=>{f.sort=e.target.value;renderCollection()};
-  view.querySelectorAll('.tile').forEach(t=>t.onclick=()=>openRecord(t.dataset.id));bindValueBar(view);
+  view.querySelectorAll('.tile').forEach(t=>t.onclick=()=>openRecord(t.dataset.id));bindValueBar(view);bindCollSeg();
 }
 
 /* record detail */
@@ -821,13 +821,13 @@ function renderWishlist(){
 /* shelf */
 function renderShelf(){
   const rule=S.settings.shelf_rule;const list=shelf();
-  if(!list.length){view.innerHTML='<div class="stack"><h2>Shelf</h2><div class="card stack"><p><b>Sorted by:</b> '+esc(ruleText(rule))+'</p><button class="btn" id="rule">Change how my shelf is sorted</button></div><p class="muted">Add records and they’ll line up here in shelf order.</p></div>';$('#rule').onclick=openShelfRule;return}
+  if(!list.length){view.innerHTML='<div class="stack"><div class="row" style="justify-content:space-between;align-items:center"><h2>Collection</h2>'+collSegHTML('shelf')+'</div><div class="card stack"><p><b>Sorted by:</b> '+esc(ruleText(rule))+'</p><button class="btn" id="rule">Change how my shelf is sorted</button></div><p class="muted">Add records and they’ll line up here in shelf order.</p></div>';$('#rule').onclick=openShelfRule;bindCollSeg();return}
   const q=S.shelfQ.toLowerCase();const secs=[];list.forEach((r,i)=>{const s=sectionOf(r,rule);let last=secs[secs.length-1];if(!last||last.s!==s){last={s,items:[]};secs.push(last)}last.items.push({r,pos:i+1})});
-  view.innerHTML='<div class="stack"><div class="row" style="justify-content:space-between;align-items:baseline"><h2>Shelf</h2><span class="muted count">'+list.length+' records</span></div>'+
+  view.innerHTML='<div class="stack"><div class="row" style="justify-content:space-between;align-items:center"><h2>Collection</h2>'+collSegHTML('shelf')+'</div><span class="muted count small">'+list.length+' records in shelf order</span>'+
     '<div class="card stack" style="gap:8px"><p><b>Sorted by:</b> '+esc(ruleText(rule))+'</p><button class="btn small" id="rule" style="align-self:flex-start">Change how my shelf is sorted</button></div>'+
     '<input type="search" id="sq" placeholder="Find a record on my shelf" value="'+esc(S.shelfQ)+'" aria-label="Find a record on my shelf">'+
     secs.map(s=>'<section class="shelf-sec"><h3><span>'+esc(s.s)+'</span><span class="small muted">'+s.items.length+'</span></h3>'+s.items.map(({r,pos})=>{const hit=(q&&(r.title+' '+r.artist).toLowerCase().includes(q))||S.focusId===r.id;return '<button class="spine'+(hit?' hit':'')+'" data-id="'+esc(r.id)+'" id="sp-'+esc(r.id)+'"><span class="pos">'+pos+'</span>'+sleeve(r)+'<span><b>'+esc(r.artist)+'</b><span>'+esc(r.title)+(r.year?' · '+r.year:'')+'</span></span></button>'}).join('')+'</section>').join('')+'</div>';
-  $('#rule').onclick=openShelfRule;
+  $('#rule').onclick=openShelfRule;bindCollSeg();
   $('#sq').oninput=e=>{S.shelfQ=e.target.value;S.focusId=null;const p=e.target.selectionStart;renderShelf();const n=$('#sq');n.focus();n.setSelectionRange(p,p);const h=view.querySelector('.spine.hit');if(h&&S.shelfQ)h.scrollIntoView({block:'center'})};
   view.querySelectorAll('.spine').forEach(b=>b.onclick=()=>openRecord(b.dataset.id));
   if(S.focusId){const el=document.getElementById('sp-'+S.focusId);if(el)setTimeout(()=>el.scrollIntoView({block:'center'}),60)}
