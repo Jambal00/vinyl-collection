@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 09:25">
+<meta name="vc-version" content="2026-11-27 11:05">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -104,6 +104,7 @@ label.chk input{width:22px;height:22px;accent-color:var(--accent)}
 .fact.key{color:var(--ink);border-color:var(--ink);font-weight:600}
 .src{font:700 10.5px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .notice{border-radius:10px;padding:12px 14px;font-size:14.5px}
+.valuebar{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1px solid var(--line);border-radius:12px;padding:10px 14px}.valuebar>div{display:flex;flex-direction:column;gap:2px;min-width:0}.vtotal{font-size:22px;line-height:1.2}.up{color:#1d7a3a;font-size:13px}.down{color:#b3261e;font-size:13px}
 .notice.warn{background:var(--warn-soft);color:var(--warn)}
 .notice.ok{background:var(--ok-soft);color:var(--ok)}
 .notice.err{background:var(--accent-soft);color:var(--accent-ink)}
@@ -195,7 +196,7 @@ function persist(){LS.set('vc-records',S.records);LS.set('vc-settings',S.setting
 function renderSync(){const el=$('#sync');if(!S.user){el.classList.add('hidden');return}el.classList.remove('hidden');
   if(S.queue.length){el.textContent=S.queue.length+' to sync';el.className='sync pending';el.title='Saved on this phone; will sync when you are back online'}
   else{el.textContent='Saved';el.className='sync';el.title='Saved to your account'}}
-const COLS=['id','status','title','artist','year','country','label','catno','barcode','format','genres','styles','cover_url','cover_alt_url','tracks','source','source_id','release_group_id','pressing_confirmed','any_pressing','gift_pick','condition_media','condition_sleeve','bought_where','price_paid','notes','compilation','created_at','desire','buy_url'];
+const COLS=['id','status','title','artist','year','country','label','catno','barcode','format','genres','styles','cover_url','cover_alt_url','tracks','source','source_id','release_group_id','pressing_confirmed','any_pressing','gift_pick','condition_media','condition_sleeve','bought_where','price_paid','notes','compilation','created_at','desire','buy_url','discogs_match','discogs_release_id','discogs_master_id'];
 function rowOf(r){const o={};COLS.forEach(k=>{if(r[k]!==undefined)o[k]=r[k]});if(o.price_paid==='')o.price_paid=null;return o}
 async function flush(){
   if(!sb||!S.user||!S.queue.length||!navigator.onLine)return;
@@ -211,7 +212,9 @@ async function flush(){
     }catch(e){console.warn('sync failed',e);renderSync();return}
   }
 }
-function saveRecord(r){const i=S.records.findIndex(x=>x.id===r.id);if(i>=0)S.records[i]=r;else S.records.push(r);S.queue=S.queue.filter(q=>!(q.t==='upsert'&&q.r.id===r.id));S.queue.push({t:'upsert',r});persist();flush()}
+function saveRecord(r){const i=S.records.findIndex(x=>x.id===r.id);const prev=i>=0?S.records[i]:null;
+  if(prev&&['barcode','catno','title','artist','source_id','status','any_pressing'].some(k=>(prev[k]??'')!==(r[k]??''))){r={...r,discogs_match:null,discogs_release_id:null,discogs_master_id:null}}
+  if(i>=0)S.records[i]=r;else S.records.push(r);S.queue=S.queue.filter(q=>!(q.t==='upsert'&&q.r.id===r.id));S.queue.push({t:'upsert',r});persist();flush()}
 function deleteRecord(id){S.records=S.records.filter(r=>r.id!==id);S.queue=S.queue.filter(q=>!(q.t==='upsert'&&q.r.id===id));S.queue.push({t:'delete',id});persist();flush()}
 function saveSettings(){S.queue=S.queue.filter(q=>q.t!=='settings');S.queue.push({t:'settings',s:S.settings});persist();flush()}
 async function pull(){
@@ -392,6 +395,55 @@ function sleeve(r,size){
 window.vcImgFail=function(img){const a=img.getAttribute('data-alt');if(a&&img.src!==a){img.removeAttribute('data-alt');img.src=a;return}const ph=img.parentNode&&img.parentNode.querySelector('.ph');img.remove();if(ph)ph.classList.remove('hidden')};
 document.addEventListener('error',e=>{const t=e.target;if(t&&t.tagName==='IMG'&&t.hasAttribute('onerror')===false&&t.closest('.sleeve'))window.vcImgFail(t)},true);
 let toastT;function toast(html,ms){clearTimeout(toastT);let el=$('.toast');if(!el){el=document.createElement('div');el.className='toast';el.setAttribute('role','status');document.body.appendChild(el)}el.innerHTML=html;toastT=setTimeout(()=>el.remove(),ms||4500)}
+/* ---------- value (Discogs) ----------
+   The vc-values edge function matches each record to Discogs and stores its value on the record, plus a
+   history row in vc_values. Owned: Discogs' suggested price for the record's grade, else lowest listed.
+   Wanted: lowest listed price. It also runs daily on a schedule and refreshes anything older than 30 days. */
+const money=v=>v==null||v===''?'':'$'+Number(v).toLocaleString('en-US',{minimumFractionDigits:Number(v)%1?2:0,maximumFractionDigits:2});
+const shortDate=d=>d?new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:new Date(d).getFullYear()!==new Date().getFullYear()?'numeric':undefined}):'';
+function valueSummary(){const owned=S.records.filter(r=>r.status==='owned'),val=owned.filter(r=>r.value_amount!=null);
+  const dates=owned.map(r=>r.value_checked_at).filter(Boolean).sort();
+  return {owned:owned.length,valued:val.length,total:val.reduce((t,r)=>t+Number(r.value_amount),0),paid:owned.reduce((t,r)=>t+(r.price_paid!=null&&r.price_paid!==''?Number(r.price_paid):0),0),last:dates[dates.length-1]||null,checked:dates.length}}
+function valueTrend(r){if(r.value_prev==null||r.value_amount==null)return '';const d=Number(r.value_amount)-Number(r.value_prev);if(Math.abs(d)<0.5)return '';return ' <span class="'+(d>0?'up':'down')+'">'+(d>0?'▲ ':'▼ ')+money(Math.abs(d))+'</span>'}
+function discogsUrl(r){return r.discogs_release_id&&r.discogs_match==='release'?'https://www.discogs.com/release/'+r.discogs_release_id:r.discogs_master_id?'https://www.discogs.com/master/'+r.discogs_master_id:r.discogs_release_id?'https://www.discogs.com/release/'+r.discogs_release_id:''}
+function valueHTML(r){
+  if(!r.value_checked_at)return '';
+  if(r.discogs_match==='none')return '<dt>Value</dt><dd class="muted">Not found on Discogs</dd>';
+  const owned=r.status==='owned';
+  const main=r.value_amount!=null?(owned?'<b>'+money(r.value_amount)+'</b>':'From <b>'+money(r.value_amount)+'</b>')+valueTrend(r):'<span class="muted">None for sale right now</span>';
+  const bits=[esc(r.value_basis||'')];if(r.value_for_sale!=null)bits.push(r.value_for_sale+' for sale');bits.push('checked '+shortDate(r.value_checked_at));
+  const u=discogsUrl(r);
+  return '<dt>'+(owned?'Value':'Price')+'</dt><dd>'+main+'<div class="small muted">'+bits.join(' · ')+(u?' · <a href="'+esc(u)+'" target="_blank" rel="noopener">Discogs ↗</a>':'')+'</div></dd>';
+}
+let valueRun=null;
+async function checkValues(ids,opt={}){
+  if(valueRun){toast('Already checking values…');return}
+  if(!S.settings.discogs_token){toast('Values come from Discogs. Add your free Discogs token in Settings first.',6000);openSettings();return}
+  if(!navigator.onLine){toast('You’re offline. Check values when you’re back online.');return}
+  if(!S.user){toast('Sign in first.');return}
+  await flush();
+  const list=(ids||S.records.map(r=>r.id)).slice();const total=list.length;let done=0,found=0,fails=0;
+  valueRun={done:0,total};renderValueProgress();
+  try{
+    while(list.length){
+      const batch=list.splice(0,4);
+      const {data:{session}}=await sb.auth.getSession();
+      const res=await fetch(SUPABASE_URL+'/functions/v1/vc-values',{method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_KEY,Authorization:'Bearer '+(session?session.access_token:'')},body:JSON.stringify({ids:batch})});
+      const j=await res.json().catch(()=>({ok:false,reason:'busy'}));
+      if(!j.ok){if(j.reason==='token'||j.reason==='token-bad'){toast('Discogs didn’t accept the token. Check it in Settings.',6000)}else toast('Couldn’t check values right now. Try again in a bit.');break}
+      (j.done||[]).forEach(v=>{if(v.error){fails++;return}const i=S.records.findIndex(x=>x.id===v.id);if(i>=0){const {id,...rest}=v;S.records[i]={...S.records[i],...rest};if(v.value_amount!=null)found++}});
+      done+=batch.length;valueRun={done,total};LS.set('vc-records',S.records);renderValueProgress();
+    }
+  }catch(e){toast('Couldn’t reach the value service. Try again in a bit.')}
+  valueRun=null;renderValueProgress();
+  if(done)toast(total===1?(found?'Value updated':'No price on Discogs for this one'):'Checked '+done+' record'+(done>1?'s':'')+' · '+found+' with a price'+(fails?' · '+fails+' to retry':''));
+  if(opt.after)opt.after();else if(!$('.sheet'))render();
+}
+function renderValueProgress(){document.querySelectorAll('[data-vprog]').forEach(el=>{el.textContent=valueRun?'Checking values… '+valueRun.done+' of '+valueRun.total:'';el.classList.toggle('hidden',!valueRun)});document.querySelectorAll('[data-vbtn]').forEach(b=>b.disabled=!!valueRun)}
+function valueBarHTML(){const v=valueSummary();
+  if(!S.settings.discogs_token&&!v.checked)return '<div class="valuebar"><div><span class="eyebrow">Collection value</span><span class="small muted">Add a free Discogs token to see what your records are worth.</span></div><button class="btn small" id="vTok">Set up</button></div>';
+  return '<div class="valuebar"><div><span class="eyebrow">Collection value</span>'+(v.valued?'<b class="vtotal">≈ '+money(Math.round(v.total))+'</b><span class="small muted">'+v.valued+' of '+v.owned+' records priced'+(v.last?' · checked '+shortDate(v.last):'')+'</span>':'<span class="small muted">Not checked yet</span>')+'<span class="small muted" data-vprog></span></div><button class="btn small" id="vChk" data-vbtn>Check values</button></div>'}
+function bindValueBar(root){const a=root.querySelector('#vChk');if(a)a.onclick=()=>checkValues();const b=root.querySelector('#vTok');if(b)b.onclick=openSettings;renderValueProgress()}
 function openSheet(html,onClose){
   closeSheet();const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML='<div class="sheet" role="dialog" aria-modal="true">'+html+'</div>';
   bg.addEventListener('click',e=>{if(e.target===bg)closeSheet()});sheetRoot.appendChild(bg);sheetRoot._onClose=onClose;
@@ -484,12 +536,13 @@ function renderCollection(){
     '<div class="filters"><select id="fg" aria-label="Genre"><option value="">All genres</option>'+genresAll().map(g=>'<option'+(g===f.genre?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select>'+
     '<select id="fd" aria-label="Era"><option value="">All eras</option>'+decadesAll().map(d=>'<option'+(d===f.decade?' selected':'')+'>'+esc(d)+'</option>').join('')+'</select>'+
     '<select id="fs" aria-label="Sort">'+[['artist','Sort: artist'],['year','Sort: year'],['recent','Sort: recently added'],['shelf','Sort: shelf order']].map(o=>'<option value="'+o[0]+'"'+(o[0]===f.sort?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'+
+    valueBarHTML()+
     (unconf?'<div class="notice warn">'+unconf+' record'+(unconf>1?'s have':' has')+' a pressing still to confirm. Look for the “Pressing?” tag.</div>':'')+
     (list.length?'<div class="covers">'+list.map(r=>'<button class="tile" data-id="'+esc(r.id)+'">'+sleeve(r)+'<b>'+esc(r.title)+'</b><span>'+esc(r.artist)+(r.year?' · '+r.year:'')+'</span></button>').join('')+'</div>':'<p class="muted">Nothing matches those filters.</p>')+
     '</div>';
   $('#q').oninput=e=>{f.q=e.target.value;const pos=e.target.selectionStart;renderCollection();const q=$('#q');q.focus();q.setSelectionRange(pos,pos)};
   $('#fg').onchange=e=>{f.genre=e.target.value;renderCollection()};$('#fd').onchange=e=>{f.decade=e.target.value;renderCollection()};$('#fs').onchange=e=>{f.sort=e.target.value;renderCollection()};
-  view.querySelectorAll('.tile').forEach(t=>t.onclick=()=>openRecord(t.dataset.id));
+  view.querySelectorAll('.tile').forEach(t=>t.onclick=()=>openRecord(t.dataset.id));bindValueBar(view);
 }
 
 /* record detail */
@@ -509,8 +562,8 @@ function openRecord(id){
     '<div class="detail">'+sleeve(r,'lg')+'<div class="stack">'+(r.status==='owned'?spotHTML(r.id):'')+
     '<dl class="kv">'+facts(r).map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>').join('')+((r.genres||[]).length?'<dt>Genre</dt><dd>'+esc([...(r.genres||[]),...(r.styles||[])].join(', '))+'</dd>':'')+
     (r.condition_media||r.condition_sleeve?'<dt>Condition</dt><dd>Record '+esc(r.condition_media||'—')+' · Sleeve '+esc(r.condition_sleeve||'—')+'</dd>':'')+(r.bought_where?'<dt>Bought</dt><dd>'+esc(r.bought_where)+(r.price_paid!=null&&r.price_paid!==''?' · $'+esc(Number(r.price_paid).toFixed(2)):'')+'</dd>':'')+
-    (r.notes?'<dt>Notes</dt><dd>'+esc(r.notes)+'</dd>':'')+(r.status==='wanted'&&r.desire?'<dt>Desire</dt><dd>'+esc(r.desire)+' of 10</dd>':'')+'</dl>'+(r.status==='wanted'&&safeUrl(r.buy_url)?'<a class="btn small" style="align-self:flex-start" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy it ↗</a>':'')+
-    (link?'<a href="'+esc(link)+'" target="_blank" rel="noopener">See this pressing on '+(r.source==='discogs'?'Discogs':'MusicBrainz')+' ↗</a>':'')+(r.cover_url?'<button class="btn small ghost" id="findCover2" style="align-self:flex-start;padding-left:0">Wrong or missing cover? Find the cover</button>':'')+
+    valueHTML(r)+(r.notes?'<dt>Notes</dt><dd>'+esc(r.notes)+'</dd>':'')+(r.status==='wanted'&&r.desire?'<dt>Desire</dt><dd>'+esc(r.desire)+' of 10</dd>':'')+'</dl>'+(r.status==='wanted'&&safeUrl(r.buy_url)?'<a class="btn small" style="align-self:flex-start" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy it ↗</a>':'')+
+    (link?'<a href="'+esc(link)+'" target="_blank" rel="noopener">See this pressing on '+(r.source==='discogs'?'Discogs':'MusicBrainz')+' ↗</a>':'')+(r.cover_url?'<button class="btn small ghost" id="findCover2" style="align-self:flex-start;padding-left:0">Wrong or missing cover? Find the cover</button>':'')+(S.settings.discogs_token?'<button class="btn small ghost" id="chk1" data-vbtn style="align-self:flex-start;padding-left:0">'+(r.value_checked_at?'Check the '+(r.status==='owned'?'value':'price')+' again':'Check the '+(r.status==='owned'?'value':'price'))+'</button>':'')+
     '</div></div><h3>Tracklist</h3>'+tracklistHTML(r.tracks)+
     '<div class="row">'+(r.status==='wanted'?'<button class="btn primary" id="got">I got it</button>':'<button class="btn" id="shelfGo">Show on shelf</button>')+'<button class="btn" id="edit">Edit details</button><button class="btn ghost" id="del" style="color:var(--accent-ink)">Remove</button></div>');
   sh.querySelector('#x').onclick=closeSheet;
@@ -520,6 +573,7 @@ function openRecord(id){
   const got=sh.querySelector('#got');if(got)got.onclick=()=>gotIt(r);
   const fc2=sh.querySelector('#findCover2');if(fc2)fc2.onclick=()=>openAddFlow({mode:r.status,fix:r,keepStatus:true,prefill:{artist:r.artist,title:r.title,barcode:r.barcode}});
   const fc=sh.querySelector('#findCover');if(fc)fc.onclick=()=>openAddFlow({mode:r.status,fix:r,keepStatus:true,prefill:{artist:r.artist,title:r.title,barcode:r.barcode}});
+  const c1=sh.querySelector('#chk1');if(c1)c1.onclick=()=>{c1.textContent='Checking Discogs…';checkValues([r.id],{after:()=>{closeSheet();openRecord(r.id)}})};
   const sg=sh.querySelector('#shelfGo');if(sg)sg.onclick=()=>{S.focusId=r.id;closeSheet();setTab('shelf')};
 }
 function confirmSheet(title,body,yes,onYes){const sh=openSheet('<h2>'+esc(title)+'</h2><p>'+esc(body)+'</p><div class="row"><button class="btn primary" id="yes">'+esc(yes)+'</button><button class="btn" id="no">Cancel</button></div>');sh.querySelector('#yes').onclick=onYes;sh.querySelector('#no').onclick=closeSheet}
@@ -705,7 +759,7 @@ function renderWishlist(){
   const list=all.filter(r=>!q||(r.title+' '+r.artist).toLowerCase().includes(q)).sort((a,b)=>(b.desire||0)-(a.desire||0)||artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true})));
   view.innerHTML='<div class="stack"><div class="row" style="justify-content:space-between;align-items:center"><h2>Wishlist</h2><span class="row"><span class="muted count">'+all.length+' wanted</span><button class="btn small dark" id="shareBtn">Share</button></span></div>'+
     (all.length?'<input type="search" id="wq" placeholder="Search my wishlist" value="'+esc(S.wq)+'" aria-label="Search my wishlist"><p class="small muted">Saved on this phone too, so it opens even with no signal in the store. Your gift list is your top 10 records that have a buy link'+(noLink?'; the '+noLink+' without a link are just for you':'')+'.</p><div class="list">'+
-      list.map(r=>'<div class="store-item">'+sleeve(r)+'<div class="stack" style="gap:6px"><div><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+'</span></div><div class="small facts" style="margin:0">'+(S.claimed.includes(r.id)?'<span class="fact claimed">🎁 Claimed</span>':(giftIds.has(r.id)?'<span class="fact gift">On gift list</span>':''))+(r.desire?'<span class="fact desire">Desire '+esc(r.desire)+'</span>':'')+(r.any_pressing?'<span class="fact key">Any pressing</span>':(r.catno||r.country||r.year?'<span class="fact key">'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · '))+'</span>':''))+'</div><div class="row"><button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button><button class="btn small" data-open="'+esc(r.id)+'">Details</button>'+(safeUrl(r.buy_url)?'<a class="btn small" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy ↗</a>':'')+'</div></div></div>').join('')+'</div>'
+      list.map(r=>'<div class="store-item">'+sleeve(r)+'<div class="stack" style="gap:6px"><div><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+'</span></div><div class="small facts" style="margin:0">'+(S.claimed.includes(r.id)?'<span class="fact claimed">🎁 Claimed</span>':(giftIds.has(r.id)?'<span class="fact gift">On gift list</span>':''))+(r.desire?'<span class="fact desire">Desire '+esc(r.desire)+'</span>':'')+(r.value_amount!=null?'<span class="fact">From '+money(r.value_amount)+'</span>':'')+(r.any_pressing?'<span class="fact key">Any pressing</span>':(r.catno||r.country||r.year?'<span class="fact key">'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · '))+'</span>':''))+'</div><div class="row"><button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button><button class="btn small" data-open="'+esc(r.id)+'">Details</button>'+(safeUrl(r.buy_url)?'<a class="btn small" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy ↗</a>':'')+'</div></div></div>').join('')+'</div>'
       :'<div class="empty"><div class="bigdisc"></div><h2>Nothing on the hunt yet</h2><p class="muted">Add the records you’re looking for, and check them on your phone when you’re digging through the bins.</p><button class="btn dark" id="go">♡ Add a record I want</button></div>')+'</div>';
   const wq=$('#wq');if(wq)wq.oninput=e=>{S.wq=e.target.value;const p=e.target.selectionStart;renderWishlist();const n=$('#wq');n.focus();n.setSelectionRange(p,p)};
   const go=$('#go');if(go)go.onclick=()=>openAddFlow({mode:'wanted'});
@@ -769,17 +823,20 @@ function renderCheck(){
 function openSettings(){
   const owned=S.records.filter(r=>r.status==='owned').length,wanted=S.records.filter(r=>r.status==='wanted').length;
   const sh=openSheet('<div class="sheet-head"><h2>Settings</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
-    '<div class="card stack"><h3>Discogs</h3><p class="small muted">Optional. When MusicBrainz can’t find a record, the app tries Discogs. Get a free token at discogs.com → Settings → Developers → Generate new token, then paste it here. It’s stored in your account only.</p>'+
+    '<div class="card stack"><h3>Discogs</h3><p class="small muted">Optional. When MusicBrainz can’t find a record, the app tries Discogs. The token also turns on record values. Get a free token at discogs.com → Settings → Developers → Generate new token, then paste it here. It’s stored in your account only.</p>'+
     '<form id="fTok" class="toolbar"><input type="password" id="tok" autocomplete="off" placeholder="Paste your Discogs token" value="'+esc(S.settings.discogs_token||'')+'" aria-label="Discogs token"><button class="btn dark">Save</button></form></div>'+
+    '<div class="card stack"><h3>Value</h3>'+(()=>{const v=valueSummary();return v.valued?'<p><b>≈ '+money(Math.round(v.total))+'</b> for '+v.valued+' of '+v.owned+' records'+(v.paid?' <span class="muted small">(you paid '+money(Math.round(v.paid))+' for the ones with a price)</span>':'')+'</p>':'<p class="small muted">Not checked yet.</p>'})()+
+    '<p class="small muted">From Discogs: the suggested price for each record’s condition grade, or the lowest listed price when there’s no grade or suggestion. Wishlist records show the lowest listed price. Values refresh by themselves about once a month; Discogs doesn’t share actual sale prices, so treat this as a guide, not an appraisal.</p><span class="small muted" data-vprog></span><button class="btn small" id="vChk2" data-vbtn style="align-self:flex-start">Check values now</button></div>'+
     '<div class="card stack"><h3>Gift &amp; share links</h3><p class="small muted">Send family your top 10 with buy links, or let friends browse your records.</p><button class="btn small" id="share2" style="align-self:flex-start">Manage share links</button></div>'+'<div class="card stack"><h3>Shelf order</h3><p>'+esc(ruleText(S.settings.shelf_rule))+'</p><button class="btn small" id="rule" style="align-self:flex-start">Change</button></div>'+
     '<div class="card stack"><h3>Backup</h3><p class="small muted">'+owned+' in the collection, '+wanted+' on the wishlist.</p><button class="btn small" id="exp" style="align-self:flex-start">Download a copy (CSV)</button></div>'+
     '<div class="card stack"><h3>Account</h3><p class="small">Signed in as <b>'+esc(S.user?.email||'')+'</b></p><p class="small muted">App version '+esc(APP_VERSION)+'</p><button class="btn small" id="out" style="align-self:flex-start">Sign out</button></div>');
   sh.querySelector('#x').onclick=closeSheet;
   sh.querySelector('#fTok').onsubmit=e=>{e.preventDefault();S.settings.discogs_token=sh.querySelector('#tok').value.trim();saveSettings();toast(S.settings.discogs_token?'Discogs token saved':'Discogs token removed')};
   sh.querySelector('#share2').onclick=openShare;
+  sh.querySelector('#vChk2').onclick=()=>checkValues(null,{after:()=>{closeSheet();openSettings()}});renderValueProgress();
   sh.querySelector('#rule').onclick=openShelfRule;
   sh.querySelector('#exp').onclick=()=>{
-    const cols=['status','artist','title','year','label','catno','country','format','barcode','genres','condition_media','condition_sleeve','bought_where','price_paid','notes'];
+    const cols=['status','artist','title','year','label','catno','country','format','barcode','genres','condition_media','condition_sleeve','bought_where','price_paid','value_amount','value_basis','value_checked_at','notes'];
     const q=v=>'"'+String(Array.isArray(v)?v.join('; '):v??'').replace(/"/g,'""')+'"';
     const csv=[cols.join(',')].concat(shelf().concat(S.records.filter(r=>r.status==='wanted')).map(r=>cols.map(c=>q(r[c])).join(','))).join('\n');
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='vinyl-collection.csv';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
