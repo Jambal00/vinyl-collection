@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 00:30">
+<meta name="vc-version" content="2026-11-27 00:40">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -509,7 +509,7 @@ function openRecord(id){
     '<dl class="kv">'+facts(r).map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>').join('')+((r.genres||[]).length?'<dt>Genre</dt><dd>'+esc([...(r.genres||[]),...(r.styles||[])].join(', '))+'</dd>':'')+
     (r.condition_media||r.condition_sleeve?'<dt>Condition</dt><dd>Record '+esc(r.condition_media||'—')+' · Sleeve '+esc(r.condition_sleeve||'—')+'</dd>':'')+(r.bought_where?'<dt>Bought</dt><dd>'+esc(r.bought_where)+(r.price_paid!=null&&r.price_paid!==''?' · $'+esc(Number(r.price_paid).toFixed(2)):'')+'</dd>':'')+
     (r.notes?'<dt>Notes</dt><dd>'+esc(r.notes)+'</dd>':'')+(r.status==='wanted'&&r.desire?'<dt>Desire</dt><dd>'+esc(r.desire)+' of 10</dd>':'')+'</dl>'+(r.status==='wanted'&&safeUrl(r.buy_url)?'<a class="btn small" style="align-self:flex-start" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy it ↗</a>':'')+
-    (link?'<a href="'+esc(link)+'" target="_blank" rel="noopener">See this pressing on '+(r.source==='discogs'?'Discogs':'MusicBrainz')+' ↗</a>':'')+
+    (link?'<a href="'+esc(link)+'" target="_blank" rel="noopener">See this pressing on '+(r.source==='discogs'?'Discogs':'MusicBrainz')+' ↗</a>':'')+(r.cover_url?'<button class="btn small ghost" id="findCover2" style="align-self:flex-start;padding-left:0">Wrong or missing cover? Find the cover</button>':'')+
     '</div></div><h3>Tracklist</h3>'+tracklistHTML(r.tracks)+
     '<div class="row">'+(r.status==='wanted'?'<button class="btn primary" id="got">I got it</button>':'<button class="btn" id="shelfGo">Show on shelf</button>')+'<button class="btn" id="edit">Edit details</button><button class="btn ghost" id="del" style="color:var(--accent-ink)">Remove</button></div>');
   sh.querySelector('#x').onclick=closeSheet;
@@ -517,6 +517,7 @@ function openRecord(id){
   sh.querySelector('#del').onclick=()=>confirmSheet('Remove “'+r.title+'”?','It comes off your '+(r.status==='owned'?'collection':'wishlist')+'. You can add it again later.','Remove',()=>{deleteRecord(r.id);closeSheet();render();toast('Removed '+esc(r.title))});
   const fp=sh.querySelector('#fixP');if(fp)fp.onclick=()=>openAddFlow({mode:'owned',fix:r,prefill:{artist:r.artist,title:r.title,barcode:r.barcode}});
   const got=sh.querySelector('#got');if(got)got.onclick=()=>gotIt(r);
+  const fc2=sh.querySelector('#findCover2');if(fc2)fc2.onclick=()=>openAddFlow({mode:r.status,fix:r,keepStatus:true,prefill:{artist:r.artist,title:r.title,barcode:r.barcode}});
   const fc=sh.querySelector('#findCover');if(fc)fc.onclick=()=>openAddFlow({mode:r.status,fix:r,keepStatus:true,prefill:{artist:r.artist,title:r.title,barcode:r.barcode}});
   const sg=sh.querySelector('#shelfGo');if(sg)sg.onclick=()=>{S.focusId=r.id;closeSheet();setTab('shelf')};
 }
