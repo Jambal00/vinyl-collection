@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 11:05">
+<meta name="vc-version" content="2026-11-27 11:45">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -76,7 +76,7 @@ label.chk input{width:22px;height:22px;accent-color:var(--accent)}
 .seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
 .seg button{border:0;background:none;min-height:40px;border-radius:9px;font-weight:600;cursor:pointer;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--deck);color:#fff}
-.toolbar{display:grid;grid-template-columns:1fr auto;gap:8px}
+.toolbar{display:grid;grid-template-columns:1fr auto;gap:8px}#fTok{grid-template-columns:1fr auto auto}
 .filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 @media(max-width:520px){.filters{grid-template-columns:1fr 1fr}.filters select:last-child{grid-column:1/-1}}
 .covers{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
@@ -415,6 +415,7 @@ function valueHTML(r){
   const u=discogsUrl(r);
   return '<dt>'+(owned?'Value':'Price')+'</dt><dd>'+main+'<div class="small muted">'+bits.join(' · ')+(u?' · <a href="'+esc(u)+'" target="_blank" rel="noopener">Discogs ↗</a>':'')+'</div></dd>';
 }
+async function testDiscogsToken(t){try{const r=await fetch('https://api.discogs.com/oauth/identity?token='+encodeURIComponent(t));if(r.status===401||r.status===403)return {ok:false,reason:'bad'};if(!r.ok)return {ok:false,reason:'net'};const j=await r.json();return {ok:true,user:j.username||''}}catch(e){return {ok:false,reason:'net'}}}
 let valueRun=null;
 async function checkValues(ids,opt={}){
   if(valueRun){toast('Already checking values…');return}
@@ -824,14 +825,21 @@ function openSettings(){
   const owned=S.records.filter(r=>r.status==='owned').length,wanted=S.records.filter(r=>r.status==='wanted').length;
   const sh=openSheet('<div class="sheet-head"><h2>Settings</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
     '<div class="card stack"><h3>Discogs</h3><p class="small muted">Optional. When MusicBrainz can’t find a record, the app tries Discogs. The token also turns on record values. Get a free token at discogs.com → Settings → Developers → Generate new token, then paste it here. It’s stored in your account only.</p>'+
-    '<form id="fTok" class="toolbar"><input type="password" id="tok" autocomplete="off" placeholder="Paste your Discogs token" value="'+esc(S.settings.discogs_token||'')+'" aria-label="Discogs token"><button class="btn dark">Save</button></form></div>'+
+    '<form id="fTok" class="toolbar"><input type="password" id="tok" autocomplete="off" spellcheck="false" autocapitalize="off" placeholder="Paste your Discogs token" value="'+esc(S.settings.discogs_token||'')+'" aria-label="Discogs token"><button type="button" class="btn" id="tokShow">Show</button><button class="btn dark">Save</button></form><p class="small" id="tokMsg" role="status">'+(S.settings.discogs_token?'<span class="muted">Token saved. Tap Save to test it again.</span>':'')+'</p></div>'+
     '<div class="card stack"><h3>Value</h3>'+(()=>{const v=valueSummary();return v.valued?'<p><b>≈ '+money(Math.round(v.total))+'</b> for '+v.valued+' of '+v.owned+' records'+(v.paid?' <span class="muted small">(you paid '+money(Math.round(v.paid))+' for the ones with a price)</span>':'')+'</p>':'<p class="small muted">Not checked yet.</p>'})()+
     '<p class="small muted">From Discogs: the suggested price for each record’s condition grade, or the lowest listed price when there’s no grade or suggestion. Wishlist records show the lowest listed price. Values refresh by themselves about once a month; Discogs doesn’t share actual sale prices, so treat this as a guide, not an appraisal.</p><span class="small muted" data-vprog></span><button class="btn small" id="vChk2" data-vbtn style="align-self:flex-start">Check values now</button></div>'+
     '<div class="card stack"><h3>Gift &amp; share links</h3><p class="small muted">Send family your top 10 with buy links, or let friends browse your records.</p><button class="btn small" id="share2" style="align-self:flex-start">Manage share links</button></div>'+'<div class="card stack"><h3>Shelf order</h3><p>'+esc(ruleText(S.settings.shelf_rule))+'</p><button class="btn small" id="rule" style="align-self:flex-start">Change</button></div>'+
     '<div class="card stack"><h3>Backup</h3><p class="small muted">'+owned+' in the collection, '+wanted+' on the wishlist.</p><button class="btn small" id="exp" style="align-self:flex-start">Download a copy (CSV)</button></div>'+
     '<div class="card stack"><h3>Account</h3><p class="small">Signed in as <b>'+esc(S.user?.email||'')+'</b></p><p class="small muted">App version '+esc(APP_VERSION)+'</p><button class="btn small" id="out" style="align-self:flex-start">Sign out</button></div>');
   sh.querySelector('#x').onclick=closeSheet;
-  sh.querySelector('#fTok').onsubmit=e=>{e.preventDefault();S.settings.discogs_token=sh.querySelector('#tok').value.trim();saveSettings();toast(S.settings.discogs_token?'Discogs token saved':'Discogs token removed')};
+  sh.querySelector('#tokShow').onclick=()=>{const i=sh.querySelector('#tok'),b=sh.querySelector('#tokShow');const show=i.type==='password';i.type=show?'text':'password';b.textContent=show?'Hide':'Show'};
+  sh.querySelector('#fTok').onsubmit=async e=>{e.preventDefault();const v=sh.querySelector('#tok').value.replace(/\s+/g,'');sh.querySelector('#tok').value=v;const msg=sh.querySelector('#tokMsg');
+    if(!v){S.settings.discogs_token='';saveSettings();msg.innerHTML='<span class="muted">Token removed.</span>';return}
+    msg.innerHTML='<span class="muted">Testing the token with Discogs…</span>';
+    const t=await testDiscogsToken(v);
+    if(t.ok){S.settings.discogs_token=v;saveSettings();msg.innerHTML='<span class="up">✓ Discogs accepted it'+(t.user?' (signed in as '+esc(t.user)+')':'')+'. Saved.</span>'}
+    else if(t.reason==='bad'){msg.innerHTML='<span class="down">Discogs didn’t accept that token, so it wasn’t saved. Copy it again from discogs.com/settings/developers.</span>'}
+    else{S.settings.discogs_token=v;saveSettings();msg.innerHTML='<span class="muted">Saved, but couldn’t reach Discogs to test it. Try Save again when you’re online.</span>'}};
   sh.querySelector('#share2').onclick=openShare;
   sh.querySelector('#vChk2').onclick=()=>checkValues(null,{after:()=>{closeSheet();openSettings()}});renderValueProgress();
   sh.querySelector('#rule').onclick=openShelfRule;
