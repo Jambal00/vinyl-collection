@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 00:40">
+<meta name="vc-version" content="2026-11-27 09:25">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -98,6 +98,7 @@ label.chk input{width:22px;height:22px;accent-color:var(--accent)}
 .cand b{font:700 17px/1.15 var(--display);display:block}
 .facts{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:4px}
 .fact{font-size:12.5px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;white-space:nowrap;color:var(--muted)}
+.fact.gift{border-color:var(--ok);color:var(--ok);font-weight:700}
 .fact.claimed{background:var(--blue-soft);border-color:var(--blue);color:var(--blue);font-weight:700}
 .fact.desire{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
 .fact.key{color:var(--ink);border-color:var(--ink);font-weight:600}
@@ -698,11 +699,13 @@ function openSaveForm(rec,opt){
 
 /* wishlist (store mode) */
 function renderWishlist(){
-  const all=S.records.filter(r=>r.status==='wanted');const q=S.wq.toLowerCase();
+  const all=S.records.filter(r=>r.status==='wanted');
+  const giftIds=new Set(all.filter(r=>safeUrl(r.buy_url)&&!S.claimed.includes(r.id)).sort((a,b)=>(b.desire||0)-(a.desire||0)||String(a.created_at).localeCompare(String(b.created_at))).slice(0,10).map(r=>r.id));
+  const noLink=all.filter(r=>!safeUrl(r.buy_url)).length;const q=S.wq.toLowerCase();
   const list=all.filter(r=>!q||(r.title+' '+r.artist).toLowerCase().includes(q)).sort((a,b)=>(b.desire||0)-(a.desire||0)||artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true})));
   view.innerHTML='<div class="stack"><div class="row" style="justify-content:space-between;align-items:center"><h2>Wishlist</h2><span class="row"><span class="muted count">'+all.length+' wanted</span><button class="btn small dark" id="shareBtn">Share</button></span></div>'+
-    (all.length?'<input type="search" id="wq" placeholder="Search my wishlist" value="'+esc(S.wq)+'" aria-label="Search my wishlist"><p class="small muted">Saved on this phone too, so it opens even with no signal in the store.</p><div class="list">'+
-      list.map(r=>'<div class="store-item">'+sleeve(r)+'<div class="stack" style="gap:6px"><div><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+'</span></div><div class="small facts" style="margin:0">'+(S.claimed.includes(r.id)?'<span class="fact claimed">🎁 Claimed</span>':'')+(r.desire?'<span class="fact desire">Desire '+esc(r.desire)+'</span>':'')+(r.any_pressing?'<span class="fact key">Any pressing</span>':(r.catno||r.country||r.year?'<span class="fact key">'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · '))+'</span>':''))+'</div><div class="row"><button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button><button class="btn small" data-open="'+esc(r.id)+'">Details</button>'+(safeUrl(r.buy_url)?'<a class="btn small" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy ↗</a>':'')+'</div></div></div>').join('')+'</div>'
+    (all.length?'<input type="search" id="wq" placeholder="Search my wishlist" value="'+esc(S.wq)+'" aria-label="Search my wishlist"><p class="small muted">Saved on this phone too, so it opens even with no signal in the store. Your gift list is your top 10 records that have a buy link'+(noLink?'; the '+noLink+' without a link are just for you':'')+'.</p><div class="list">'+
+      list.map(r=>'<div class="store-item">'+sleeve(r)+'<div class="stack" style="gap:6px"><div><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+'</span></div><div class="small facts" style="margin:0">'+(S.claimed.includes(r.id)?'<span class="fact claimed">🎁 Claimed</span>':(giftIds.has(r.id)?'<span class="fact gift">On gift list</span>':''))+(r.desire?'<span class="fact desire">Desire '+esc(r.desire)+'</span>':'')+(r.any_pressing?'<span class="fact key">Any pressing</span>':(r.catno||r.country||r.year?'<span class="fact key">'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · '))+'</span>':''))+'</div><div class="row"><button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button><button class="btn small" data-open="'+esc(r.id)+'">Details</button>'+(safeUrl(r.buy_url)?'<a class="btn small" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy ↗</a>':'')+'</div></div></div>').join('')+'</div>'
       :'<div class="empty"><div class="bigdisc"></div><h2>Nothing on the hunt yet</h2><p class="muted">Add the records you’re looking for, and check them on your phone when you’re digging through the bins.</p><button class="btn dark" id="go">♡ Add a record I want</button></div>')+'</div>';
   const wq=$('#wq');if(wq)wq.oninput=e=>{S.wq=e.target.value;const p=e.target.selectionStart;renderWishlist();const n=$('#wq');n.focus();n.setSelectionRange(p,p)};
   const go=$('#go');if(go)go.onclick=()=>openAddFlow({mode:'wanted'});
@@ -810,8 +813,8 @@ setInterval(checkForUpdate,3*60*1000);
 
 /* ---------- share links (Pete's side) ---------- */
 const LINK_KINDS=[
-  {k:'guessers',t:'Family gift list',d:'Your current top 10 with buy links. Family taps “I’m getting this” so nobody doubles up, and you never see who.'},
-  {k:'insiders',t:'Family gift list + my collection',d:'The same top 10, plus everything you already own, for family who like to pick a surprise.'},
+  {k:'guessers',t:'Family gift list',d:'Your top 10 records that have a buy link, by desire. It updates on its own as you add or change records. Family taps “I’m getting this” so nobody doubles up, and you never see who.'},
+  {k:'insiders',t:'Family gift list + my collection',d:'The same top 10 with buy links, plus everything you already own, for family who like to pick a surprise.'},
   {k:'friends',t:'My collection for friends',d:'Read-only: your records as a cover grid. No wishlist, no prices.'}];
 const linkUrl=t=>location.origin+location.pathname+'?g='+t;
 async function openShare(){
