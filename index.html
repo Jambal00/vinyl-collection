@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 12:30">
+<meta name="vc-version" content="2026-11-27 12:45">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -77,6 +77,11 @@ label.chk input{width:22px;height:22px;accent-color:var(--accent)}
 .seg button{border:0;background:none;min-height:40px;border-radius:9px;font-weight:600;cursor:pointer;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--deck);color:#fff}
 .mover{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}.mover span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mover span:last-child{white-space:nowrap}
+.story{display:flex;flex-direction:column;gap:10px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:14px}.story h3{margin:0}.story p{margin:0;line-height:1.5}
+.story-src{display:flex;justify-content:space-between;align-items:center;gap:10px;border-top:1px solid var(--line);padding-top:8px;font-size:13px;color:var(--muted)}.story-src a{font-weight:600;font-size:14px;text-decoration:none}
+.cgrp{display:flex;flex-direction:column;gap:6px}.crow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px}.crow b{font-weight:600}.crow span{color:var(--muted);text-align:right}
+.cwhen{display:flex;flex-direction:column;gap:8px}.cwhen div,.ctrk{display:flex;flex-direction:column}.cwhen span,.ctrk span{color:var(--muted);font-size:14px}.ctrk{padding:6px 0;border-bottom:1px solid var(--line)}#credTracks{display:flex;flex-direction:column}#credTracks.hidden{display:none!important}
+.trk .lyr{font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;}
 .vlink{width:100%;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}.vlink:hover{background:#0000000a}.chev{font-size:14px;font-weight:600;white-space:nowrap;color:var(--accent-ink,inherit)}
 .vstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.vstats>div{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}.vstats b{font-size:20px}
 @media(max-width:600px){.vstats{grid-template-columns:1fr 1fr}.vstats>div:first-child{grid-column:1/-1}}
@@ -90,7 +95,7 @@ label.chk input{width:22px;height:22px;accent-color:var(--accent)}
 .lfoot{grid-template-columns:1fr auto;font-size:14px;color:var(--muted)}.lfoot b{color:var(--ink,inherit);font-size:16px}
 .vseg{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden}.vseg button{border:0;background:none;padding:5px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}.vseg button[aria-pressed=true]{background:var(--deck);color:#fff}
 @media(max-width:600px){.lhead,.lrow{grid-template-columns:44px minmax(0,1fr) 34px 70px;gap:8px;padding:8px 10px}.lrow .sleeve{width:44px;height:44px}}
-.toolbar{display:grid;grid-template-columns:1fr auto;gap:8px}#fTok{grid-template-columns:1fr auto auto}#tok.masked{-webkit-text-security:disc;text-security:disc}
+.toolbar{display:grid;grid-template-columns:1fr auto;gap:8px}#fTok,#fGen{grid-template-columns:1fr auto auto}#gtok.masked,#tok.masked{-webkit-text-security:disc;text-security:disc}
 .filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 @media(max-width:520px){.filters{grid-template-columns:1fr 1fr}.filters select:last-child{grid-column:1/-1}}
 .covers{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
@@ -139,7 +144,7 @@ details.help ol{margin:8px 0 4px;padding-left:20px;display:flex;flex-direction:c
 .kv dd{margin:0}
 .side{display:flex;flex-direction:column;gap:2px}
 .side h4{margin:10px 0 4px;font:700 13px var(--body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.trk{display:grid;grid-template-columns:36px 1fr auto;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px}
+.trk{display:grid;grid-template-columns:36px 1fr auto auto;align-items:baseline;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px}
 .trk .n{color:var(--muted);font-variant-numeric:tabular-nums}
 .trk .t{color:var(--muted);font-variant-numeric:tabular-nums}
 .spot{display:flex;flex-direction:column;gap:4px;background:var(--deck);color:#fff;border-radius:12px;padding:14px 16px}
@@ -220,7 +225,7 @@ async function flush(){
       let res;
       if(op.t==='upsert')res=await sb.from('vc_records').upsert(rowOf(op.r));
       else if(op.t==='delete')res=await sb.from('vc_records').delete().eq('id',op.id);
-      else if(op.t==='settings')res=await sb.from('vc_settings').upsert({owner:S.user.id,shelf_rule:op.s.shelf_rule,discogs_token:op.s.discogs_token||null,display_name:op.s.display_name||null});
+      else if(op.t==='settings')res=await sb.from('vc_settings').upsert({owner:S.user.id,shelf_rule:op.s.shelf_rule,discogs_token:op.s.discogs_token||null,genius_token:op.s.genius_token||null,display_name:op.s.display_name||null});
       if(res.error)throw res.error;
       S.queue.shift();persist();
     }catch(e){console.warn('sync failed',e);renderSync();return}
@@ -237,7 +242,7 @@ async function pull(){
   if(S.queue.length)return;
   const [a,b,c]=await Promise.all([sb.from('vc_records').select('*').order('created_at'),sb.from('vc_settings').select('*').maybeSingle(),sb.rpc('vc_my_claimed')]);
   if(!a.error){S.records=a.data||[]}
-  if(!b.error&&b.data){S.settings={shelf_rule:b.data.shelf_rule||S.settings.shelf_rule,discogs_token:b.data.discogs_token||'',display_name:b.data.display_name||''}}
+  if(!b.error&&b.data){S.settings={shelf_rule:b.data.shelf_rule||S.settings.shelf_rule,discogs_token:b.data.discogs_token||'',genius_token:b.data.genius_token||'',display_name:b.data.display_name||''}}
   if(!c.error&&Array.isArray(c.data)){S.claimed=c.data.map(x=>typeof x==='string'?x:(x.vc_my_claimed||Object.values(x)[0]));LS.set('vc-claimed',S.claimed)}
   persist();render();
   enrichCovers();
@@ -595,10 +600,114 @@ function renderCollection(){
 }
 
 /* record detail */
-function tracklistHTML(tracks){
+/* ---------- story behind the album ----------
+   About: Wikipedia summary found through MusicBrainz → Wikidata (never guessed by searching Wikipedia).
+   Credits: MusicBrainz relationships on the release (or another official release of the album), Discogs as backup.
+   Genius: direct song links and Genius's album description, through the vc-genius edge function (Pete's token).
+   Everything is cached on the phone for 30 days. */
+const MBID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const storyAll=()=>LS.get('vc-story-v1',{});
+function storyGet(id){const c=storyAll()[id];return c&&Date.now()-(c.at||0)<30*864e5?c:{}}
+function storySet(id,v){const c=storyAll();c[id]={...(c[id]||{}),...v,at:(c[id]&&c[id].at)||Date.now()};LS.set('vc-story-v1',c)}
+const storyBusy={};
+const ROLE={producer:'Producer',mix:'Mixing',mastering:'Mastering',engineer:'Engineer',recording:'Recording engineer',audio:'Audio engineer',sound:'Sound engineer',programming:'Programming',arranger:'Arranger','instrument arranger':'Arranger','vocal arranger':'Vocal arranger',orchestrator:'Orchestrator',conductor:'Conductor','misc':'Other',editor:'Editing',balance:'Balance engineer','chorus master':'Chorus master'};
+const cap1=t=>String(t||'').replace(/^./,c=>c.toUpperCase());
+function fmtDay(d){if(!d)return '';const p=String(d).split('-');const m=['January','February','March','April','May','June','July','August','September','October','November','December'];return p.length===3?m[+p[1]-1]+' '+(+p[2])+', '+p[0]:p.length===2?m[+p[1]-1]+' '+p[0]:p[0]}
+function dateSpan(a,b){if(!a&&!b)return '';if(!b||a===b)return fmtDay(a||b);const pa=String(a).split('-'),pb=String(b).split('-');if(pa.length===3&&pb.length===3&&pa[0]===pb[0]&&pa[1]===pb[1])return fmtDay(a).replace(/ \d+,/,' '+(+pa[2])+'–'+(+pb[2])+',');return fmtDay(a)+' – '+fmtDay(b)}
+function parseMBCredits(j){
+  const band=new Map(),prod=new Map(),places=new Map(),perTrack=[];
+  const addPerf=(name,role)=>{if(!band.has(name))band.set(name,{roles:new Set(),n:0});const b=band.get(name);b.roles.add(role);b.n++};
+  const addProd=(name,role)=>{if(!prod.has(name))prod.set(name,new Set());prod.get(name).add(role)};
+  const take=(rel,trk)=>{
+    if(rel['target-type']==='artist'&&rel.artist){const nm=rel['target-credit']||rel.artist.name;const at=(rel.attributes||[]).filter(a=>!/^(additional|guest|solo|co|assistant|executive)$/.test(a));
+      if(rel.type==='instrument'||rel.type==='vocal'||rel.type==='performer'){const role=rel.type==='vocal'?(at.length?at.join(', '):'vocals'):(at.length?at.join(', '):(rel.type==='instrument'?'instruments':'performer'));addPerf(nm,role);if(trk)trk.push([nm,role]);return}
+      const lab=ROLE[rel.type];if(lab){const l=(rel.attributes||[]).includes('executive')?'Executive producer':(rel.attributes||[]).includes('assistant')?'Assistant '+lab.toLowerCase():lab;addProd(nm,l);if(trk)trk.push([nm,l])}}
+    else if(rel['target-type']==='place'&&rel.place&&/(recorded|mixed|mastered) at/.test(rel.type)){const k=rel.place.name;if(!places.has(k))places.set(k,{what:new Set(),b:null,e:null,area:(rel.place.area&&rel.place.area.name)||''});const p=places.get(k);p.what.add(rel.type.split(' ')[0]);if(rel.begin&&(!p.b||rel.begin<p.b))p.b=rel.begin;const e=rel.end||rel.begin;if(e&&(!p.e||e>p.e))p.e=e}
+  };
+  (j.relations||[]).forEach(rel=>take(rel,null));
+  (j.media||[]).forEach(m=>(m.tracks||[]).forEach(t=>{const list=[];((t.recording&&t.recording.relations)||[]).forEach(rel=>take(rel,list));perTrack.push({pos:t.number||t.position,title:t.title||(t.recording&&t.recording.title),credits:list})}));
+  const bandArr=[...band.entries()].sort((a,b)=>b[1].n-a[1].n).map(([name,v])=>({name,role:cap1([...v.roles].slice(0,3).join(', '))}));
+  const prodArr=[...prod.entries()].map(([name,v])=>({name,role:[...v].join(', ')}));
+  const placeArr=[...places.entries()].map(([name,v])=>({name:name+(v.area&&!name.includes(v.area)?', '+v.area:''),what:cap1([...v.what].join(' and ')),when:dateSpan(v.b,v.e)}));
+  return {band:bandArr,prod:prodArr,places:placeArr,tracks:perTrack.filter(t=>t.credits.length),src:'MusicBrainz',empty:!bandArr.length&&!prodArr.length&&!placeArr.length};
+}
+function parseDGCredits(j){
+  const band=[],prod=[];const nm=n=>String(n||'').replace(/\s\(\d+\)$/,'').replace(/\*$/,'');
+  (j.extraartists||[]).forEach(x=>{const role=String(x.role||'').replace(/\[.*?\]/g,'').trim();if(!role||/design|photo|art direction|artwork|liner|layout|lacquer|cut|management|label|a&r|illustrat|logo|typograph|sleeve|copyright|legal/i.test(role))return;(/produc|mix|master|engineer|record|programm|arrang|conduct|edit/i.test(role)?prod:band).push({name:nm(x.name),role:cap1(role)+(x.tracks?' ('+x.tracks+')':'')})});
+  return {band,prod,places:[],tracks:[],src:'Discogs',empty:!band.length&&!prod.length};
+}
+async function rgIdOf(r){
+  if(MBID.test(r.release_group_id||''))return r.release_group_id;
+  if(r.source==='musicbrainz'&&MBID.test(r.source_id||'')){const j=await mb('release/'+r.source_id+'?inc=release-groups');return j['release-group']?j['release-group'].id:null}
+  const f=await findCover(r.artist,r.title);return f.hit?f.hit.id:null;
+}
+async function fetchAbout(rg){
+  const j=await mb('release-group/'+rg+'?inc=url-rels');let title=null;
+  const rels=j.relations||[];const wp=rels.find(x=>x.type==='wikipedia'&&/en\.wikipedia\.org\/wiki\//.test(x.url&&x.url.resource||''));
+  if(wp)title=decodeURIComponent(wp.url.resource.split('/wiki/')[1]);
+  const wd=rels.find(x=>x.type==='wikidata');
+  if(!title&&wd){const q=(wd.url.resource.match(/Q\d+/)||[])[0];if(q){const e=await (await fetch('https://www.wikidata.org/w/api.php?action=wbgetentities&ids='+q+'&props=sitelinks&sitefilter=enwiki&format=json&origin=*')).json();const sl=e.entities&&e.entities[q]&&e.entities[q].sitelinks&&e.entities[q].sitelinks.enwiki;if(sl)title=sl.title}}
+  if(!title)return null;
+  const res=await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(title.replace(/ /g,'_')));if(!res.ok)return null;
+  const w=await res.json();if(!w.extract||w.type==='disambiguation')return null;
+  return {text:w.extract,url:(w.content_urls&&w.content_urls.desktop&&w.content_urls.desktop.page)||('https://en.wikipedia.org/wiki/'+encodeURIComponent(title))};
+}
+async function fetchCredits(r,rg){
+  const tryRel=async id=>parseMBCredits(await mb('release/'+id+'?inc=artist-rels+place-rels+recordings+recording-level-rels'));
+  const own=r.source==='musicbrainz'&&MBID.test(r.source_id||'')?r.source_id:null;let c=null;
+  if(own)c=await tryRel(own);
+  if((!c||c.empty)&&rg){const g=await mb('release?release-group='+rg+'&status=official&limit=8');const rels=(g.releases||[]).filter(x=>x.id!==own).sort((a,b)=>String(a.date||'9999').localeCompare(String(b.date||'9999')));for(const x of rels.slice(0,3)){c=await tryRel(x.id);if(!c.empty)break}}
+  if((!c||c.empty)&&S.settings.discogs_token){const id=r.discogs_release_id||(r.source==='discogs'?r.source_id:null);if(id){const d=await dg('releases/'+id);if(d){const dc=parseDGCredits(d);if(!dc.empty)c=dc}}}
+  return c&&!c.empty?c:null;
+}
+async function fetchGenius(r){
+  if(!S.settings.genius_token||!S.user||!(r.tracks||[]).length)return null;
+  const {data:{session}}=await sb.auth.getSession();
+  const res=await fetch(SUPABASE_URL+'/functions/v1/vc-genius',{method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_KEY,Authorization:'Bearer '+(session?session.access_token:'')},body:JSON.stringify({artist:r.artist,title:r.title,tracks:r.tracks.map(t=>t.title)})});
+  const j=await res.json().catch(()=>null);return j&&j.ok?{tracks:j.tracks||[],album:j.album||null}:null;
+}
+function storyRefresh(r){const sa=document.getElementById('storyAbout');if(!sa||sa.dataset.rid!==r.id)return;sa.innerHTML=aboutHTML(r);document.getElementById('storyCredits').innerHTML=creditsHTML(r);document.getElementById('trkList').innerHTML=tracklistHTML(r.tracks,r);bindStory(document.querySelector('.sheet'),r)}
+async function loadStory(r,force){
+  if(storyBusy[r.id]||!navigator.onLine)return;const c=storyGet(r.id);
+  const need={about:force||!('about' in c),credits:force||!('credits' in c),genius:!!S.settings.genius_token&&(force||!('genius' in c))};
+  if(!need.about&&!need.credits&&!need.genius)return;
+  storyBusy[r.id]=true;storyRefresh(r);
+  try{
+    let rg=null;if(need.about||need.credits){try{rg=await rgIdOf(r)}catch(e){}}
+    if(need.about){try{storySet(r.id,{about:rg?await fetchAbout(rg):null})}catch(e){}storyRefresh(r)}
+    if(need.credits){try{storySet(r.id,{credits:await fetchCredits(r,rg)})}catch(e){}storyRefresh(r)}
+    if(need.genius){try{const g=await fetchGenius(r);if(g)storySet(r.id,{genius:g})}catch(e){}}
+  }finally{storyBusy[r.id]=false;storyRefresh(r)}
+}
+function aboutHTML(r){
+  const c=storyGet(r.id);const g=c.genius&&c.genius.album;
+  if(!('about' in c)&&!(g&&g.about))return storyBusy[r.id]||navigator.onLine?'<section class="story"><h3>About this album</h3><p class="muted small">Looking up the story behind this one…</p></section>':'';
+  const parts=[];
+  if(c.about&&c.about.text)parts.push('<p>'+esc(c.about.text)+'</p><div class="story-src"><span>From Wikipedia</span><a href="'+esc(safeUrl(c.about.url))+'" target="_blank" rel="noopener">Read the full story ↗</a></div>');
+  if(g&&g.about)parts.push('<p class="gab">'+esc(g.about.length>700?g.about.slice(0,700).replace(/\s+\S*$/,'')+'…':g.about)+'</p><div class="story-src"><span>From Genius</span>'+(safeUrl(g.url)?'<a href="'+esc(g.url)+'" target="_blank" rel="noopener">More on Genius ↗</a>':'')+'</div>');
+  if(!parts.length)return '';
+  return '<section class="story"><h3>About this album</h3>'+parts.join('')+'</section>';
+}
+function creditsHTML(r){
+  const c=storyGet(r.id);
+  if(!('credits' in c))return storyBusy[r.id]?'<section class="story"><h3>Credits</h3><p class="muted small">Looking up who made it…</p></section>':'';
+  const k=c.credits;if(!k)return '';
+  const rows=a=>'<div class="crow">'+a.map(x=>'<b>'+esc(x.name)+'</b><span>'+esc(x.role)+'</span>').join('')+'</div>';
+  const when=[...k.places.map(p=>'<div><b>'+esc(p.name)+'</b><span>'+esc(p.what+(p.when?' '+p.when:''))+'</span></div>')];
+  if(r.year||r.label)when.push('<div><b>Released '+esc(r.year||'')+'</b><span>'+esc(r.label||'')+'</span></div>');
+  return '<section class="story"><h3>Credits</h3>'+
+    (k.band.length?'<div class="cgrp"><span class="eyebrow">The band</span>'+rows(k.band.slice(0,8))+'</div>':'')+
+    (k.prod.length?'<div class="cgrp"><span class="eyebrow">Behind the board</span>'+rows(k.prod.slice(0,8))+'</div>':'')+
+    (when.length?'<div class="cgrp"><span class="eyebrow">Where and when</span><div class="cwhen">'+when.join('')+'</div></div>':'')+
+    (k.tracks.length||k.band.length>8||k.prod.length>8?'<button class="btn small" id="allCred" style="align-self:flex-start">All credits by track</button><div id="credTracks" class="hidden">'+(k.tracks.length?k.tracks.map(t=>'<div class="ctrk"><b>'+esc(t.pos)+' · '+esc(t.title)+'</b><span>'+esc(t.credits.map(x=>x[0]+' ('+x[1]+')').join(', '))+'</span></div>').join(''):rows(k.band.slice(8).concat(k.prod.slice(8))))+'</div>':'')+
+    '<div class="story-src"><span>From '+esc(k.src)+'</span></div></section>';
+}
+function bindStory(sh,r){if(!sh)return;const b=sh.querySelector('#allCred');if(b)b.onclick=()=>{const d=sh.querySelector('#credTracks');const open=d.classList.toggle('hidden')===false;b.textContent=open?'Hide credits by track':'All credits by track'}}
+function tracklistHTML(tracks,r){
   if(!tracks||!tracks.length)return '<p class="muted small">No tracklist from the catalogs for this one.</p>';
-  const groups=[];tracks.forEach(t=>{const g=t.side||'';let last=groups[groups.length-1];if(!last||last.k!==g){last={k:g,t:[]};groups.push(last)}last.t.push(t)});
-  return groups.map(g=>'<div class="side">'+(g.k?'<h4>'+esc(g.k)+'</h4>':'')+g.t.map(t=>'<div class="trk"><span class="n">'+esc(t.pos)+'</span><span>'+esc(t.title)+'</span><span class="t">'+esc(t.len)+'</span></div>').join('')+'</div>').join('');
+  const gl=(r&&storyGet(r.id).genius)||null;const byI={};if(gl&&gl.tracks)gl.tracks.forEach(t=>byI[t.i]=t.url);
+  const groups=[];tracks.forEach((t,i)=>{const g=t.side||'';let last=groups[groups.length-1];if(!last||last.k!==g){last={k:g,t:[]};groups.push(last)}last.t.push({...t,i})});
+  return groups.map(g=>'<div class="side">'+(g.k?'<h4>'+esc(g.k)+'</h4>':'')+g.t.map(t=>{const u=safeUrl(byI[t.i])||(r?'https://genius.com/search?q='+encodeURIComponent(r.artist+' '+t.title):'');return '<div class="trk"><span class="n">'+esc(t.pos)+'</span><span>'+esc(t.title)+'</span><span class="t">'+esc(t.len)+'</span>'+(u?'<a class="lyr" href="'+esc(u)+'" target="_blank" rel="noopener" aria-label="Lyrics and meaning for '+esc(t.title)+' on Genius">Lyrics ↗</a>':'')+'</div>'}).join('')+'</div>').join('');
 }
 function spotHTML(id){const s=spotOf(id);if(!s)return '';
   return '<div class="spot"><span class="eyebrow" style="color:#ffffffaa">On the shelf</span><span class="big">#'+s.pos+' of '+s.total+'</span><span>'+esc(s.section)+' · '+s.secPos+' of '+s.secTotal+' in this section</span><span class="between">'+
@@ -613,9 +722,9 @@ function openRecord(id){
     (r.condition_media||r.condition_sleeve?'<dt>Condition</dt><dd>Record '+esc(r.condition_media||'—')+' · Sleeve '+esc(r.condition_sleeve||'—')+'</dd>':'')+(r.bought_where?'<dt>Bought</dt><dd>'+esc(r.bought_where)+(r.price_paid!=null&&r.price_paid!==''?' · $'+esc(Number(r.price_paid).toFixed(2)):'')+'</dd>':'')+
     (S.tab==='value'||r.status==='wanted'?valueHTML(r):'')+(r.notes?'<dt>Notes</dt><dd>'+esc(r.notes)+'</dd>':'')+(r.status==='wanted'&&r.desire?'<dt>Desire</dt><dd>'+esc(r.desire)+' of 10</dd>':'')+'</dl>'+(r.status==='wanted'&&safeUrl(r.buy_url)?'<a class="btn small" style="align-self:flex-start" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy it ↗</a>':'')+
     (link?'<a href="'+esc(link)+'" target="_blank" rel="noopener">See this pressing on '+(r.source==='discogs'?'Discogs':'MusicBrainz')+' ↗</a>':'')+(r.cover_url?'<button class="btn small ghost" id="findCover2" style="align-self:flex-start;padding-left:0">Wrong or missing cover? Find the cover</button>':'')+(S.settings.discogs_token&&(S.tab==='value'||r.status==='wanted')?'<button class="btn small ghost" id="chk1" data-vbtn style="align-self:flex-start;padding-left:0">'+(r.value_checked_at?'Check the '+(r.status==='owned'?'value':'price')+' again':'Check the '+(r.status==='owned'?'value':'price'))+'</button>':'')+
-    '</div></div><h3>Tracklist</h3>'+tracklistHTML(r.tracks)+
+    '</div></div><h3>Tracklist</h3><div id="trkList">'+tracklistHTML(r.tracks,r)+'</div><div id="storyAbout" data-rid="'+esc(r.id)+'">'+aboutHTML(r)+'</div><div id="storyCredits">'+creditsHTML(r)+'</div>'+
     '<div class="row">'+(r.status==='wanted'?'<button class="btn primary" id="got">I got it</button>':'<button class="btn" id="shelfGo">Show on shelf</button>')+'<button class="btn" id="edit">Edit details</button><button class="btn ghost" id="del" style="color:var(--accent-ink)">Remove</button></div>');
-  sh.querySelector('#x').onclick=closeSheet;
+  sh.querySelector('#x').onclick=closeSheet;bindStory(sh,r);loadStory(r);
   sh.querySelector('#edit').onclick=()=>openSaveForm(r,{editing:true});
   sh.querySelector('#del').onclick=()=>confirmSheet('Remove “'+r.title+'”?','It comes off your '+(r.status==='owned'?'collection':'wishlist')+'. You can add it again later.','Remove',()=>{deleteRecord(r.id);closeSheet();render();toast('Removed '+esc(r.title))});
   const fp=sh.querySelector('#fixP');if(fp)fp.onclick=()=>openAddFlow({mode:'owned',fix:r,prefill:{artist:r.artist,title:r.title,barcode:r.barcode}});
@@ -874,6 +983,8 @@ function openSettings(){
   const sh=openSheet('<div class="sheet-head"><h2>Settings</h2><button class="iconbtn" id="x" aria-label="Close">✕</button></div>'+
     '<div class="card stack"><h3>Discogs</h3><p class="small muted">Optional. When MusicBrainz can’t find a record, the app tries Discogs. The token also turns on record values. Get a free token at discogs.com → Settings → Developers → Generate new token, then paste it here. It’s stored in your account only.</p>'+
     '<form id="fTok" class="toolbar"><input type="text" class="masked" id="tok" name="vc-discogs-key" autocomplete="off" data-1p-ignore data-lpignore="true" data-form-type="other" spellcheck="false" autocapitalize="off" placeholder="Paste your Discogs token" value="'+esc(S.settings.discogs_token||'')+'" aria-label="Discogs token"><button type="button" class="btn" id="tokShow">Show</button><button class="btn dark">Save</button></form><p class="small" id="tokMsg" role="status">'+(S.settings.discogs_token?'<span class="muted">Token saved. Tap Save to test it again.</span>':'')+'</p></div>'+
+    '<div class="card stack"><h3>Genius</h3><p class="small muted">Optional. Links each track straight to its Genius page for lyrics and meaning, and adds Genius’s write-up of the album when it has one. Paste the client access token from genius.com/api-clients.</p>'+
+    '<form id="fGen" class="toolbar tokrow"><input type="text" class="masked" id="gtok" name="vc-genius-key" autocomplete="off" data-1p-ignore data-lpignore="true" data-form-type="other" spellcheck="false" autocapitalize="off" placeholder="Paste your Genius token" value="'+esc(S.settings.genius_token||'')+'" aria-label="Genius token"><button type="button" class="btn" id="gtokShow">Show</button><button class="btn dark">Save</button></form><p class="small" id="gtokMsg" role="status">'+(S.settings.genius_token?'<span class="muted">Token saved.</span>':'')+'</p></div>'+
     '<div class="card stack"><h3>Value</h3>'+(()=>{const v=valueSummary();return v.valued?'<p><b>≈ '+money(Math.round(v.total))+'</b> for '+v.valued+' of '+v.owned+' records'+(v.paid?' <span class="muted small">(you paid '+money(Math.round(v.paid))+' for the ones with a price)</span>':'')+'</p>':'<p class="small muted">Not checked yet.</p>'})()+
     '<p class="small muted">From Discogs: the suggested price for each record’s condition grade, or the lowest listed price when there’s no grade or suggestion. Wishlist records show the lowest listed price. Values refresh by themselves about once a month; Discogs doesn’t share actual sale prices, so treat this as a guide, not an appraisal.</p><span class="small muted" data-vprog></span><div class="row"><button class="btn small" id="vChk2" data-vbtn>Check values now</button><button class="btn small" id="vGo2">Explore values</button></div></div>'+
     '<div class="card stack"><h3>Gift &amp; share links</h3><p class="small muted">Send family your top 10 with buy links, or let friends browse your records.</p><button class="btn small" id="share2" style="align-self:flex-start">Manage share links</button></div>'+'<div class="card stack"><h3>Shelf order</h3><p>'+esc(ruleText(S.settings.shelf_rule))+'</p><button class="btn small" id="rule" style="align-self:flex-start">Change</button></div>'+
@@ -881,6 +992,15 @@ function openSettings(){
     '<div class="card stack"><h3>Account</h3><p class="small">Signed in as <b>'+esc(S.user?.email||'')+'</b></p><p class="small muted">App version '+esc(APP_VERSION)+'</p><button class="btn small" id="out" style="align-self:flex-start">Sign out</button></div>');
   sh.querySelector('#x').onclick=closeSheet;
   if(S.settings.discogs_token&&navigator.onLine){testDiscogsToken(S.settings.discogs_token).then(t=>{const m=sh.querySelector('#tokMsg');if(!m||!document.body.contains(m))return;if(t.ok)m.innerHTML='<span class="up">✓ Your token works'+(t.user?' (Discogs user '+esc(t.user)+')':'')+'.</span>';else if(t.reason==='bad')m.innerHTML='<span class="down">Discogs isn’t accepting the saved token. Clear the box, paste a fresh one and tap Save.</span>'})}
+  sh.querySelector('#gtokShow').onclick=()=>{const i=sh.querySelector('#gtok'),b=sh.querySelector('#gtokShow');const show=i.classList.toggle('masked')===false;b.textContent=show?'Hide':'Show'};
+  sh.querySelector('#fGen').onsubmit=async e=>{e.preventDefault();const i=sh.querySelector('#gtok');const v=i.value.replace(/\s+/g,'');i.value=v;const msg=sh.querySelector('#gtokMsg');
+    if(!v){S.settings.genius_token='';saveSettings();msg.innerHTML='<span class="muted">Token removed.</span>';return}
+    if(!navigator.onLine||!S.user){msg.innerHTML='<span class="muted">Go online and sign in to test and save it.</span>';return}
+    msg.innerHTML='<span class="muted">Testing the token with Genius…</span>';
+    let t={ok:false,reason:'net'};try{const {data:{session}}=await sb.auth.getSession();const res=await fetch(SUPABASE_URL+'/functions/v1/vc-genius',{method:'POST',headers:{'Content-Type':'application/json',apikey:SUPABASE_KEY,Authorization:'Bearer '+(session?session.access_token:'')},body:JSON.stringify({action:'test',token:v})});t=await res.json()}catch(e){}
+    if(t.ok){S.settings.genius_token=v;saveSettings();const c=storyAll();Object.keys(c).forEach(k=>delete c[k].genius);LS.set('vc-story-v1',c);msg.innerHTML='<span class="up">✓ Genius accepted it. Saved.</span>'}
+    else if(t.reason==='token-bad'||t.reason==='bad'){msg.innerHTML='<span class="down">Genius didn’t accept that token, so it wasn’t saved. Copy the client access token again from genius.com/api-clients.</span>'}
+    else msg.innerHTML='<span class="muted">Couldn’t reach Genius to test it. Try Save again in a bit.</span>'};
   sh.querySelector('#tokShow').onclick=()=>{const i=sh.querySelector('#tok'),b=sh.querySelector('#tokShow');const show=i.classList.toggle('masked')===false;b.textContent=show?'Hide':'Show'};
   sh.querySelector('#fTok').onsubmit=async e=>{e.preventDefault();const v=sh.querySelector('#tok').value.replace(/\s+/g,'');sh.querySelector('#tok').value=v;const msg=sh.querySelector('#tokMsg');
     if(!v){S.settings.discogs_token='';saveSettings();msg.innerHTML='<span class="muted">Token removed.</span>';return}

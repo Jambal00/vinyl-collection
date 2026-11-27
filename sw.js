@@ -5,7 +5,7 @@ const SHELL_FILES=['./','./index.html','./manifest.webmanifest','./icon.svg','./
 self.addEventListener('install',e=>{e.waitUntil(caches.open(SHELL).then(c=>c.addAll(SHELL_FILES)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>![SHELL,MEDIA].includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('message',e=>{if(e.data==='skipWaiting')self.skipWaiting()});
-const API=/vcheck=|supabase\.co|musicbrainz\.org\/ws|api\.discogs\.com/;
+const API=/vcheck=|supabase\.co|musicbrainz\.org\/ws|api\.discogs\.com|wikipedia\.org|wikidata\.org/;
 self.addEventListener('fetch',e=>{
   const req=e.request; if(req.method!=='GET')return;
   const url=new URL(req.url);
