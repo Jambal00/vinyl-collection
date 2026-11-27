@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 00:05">
+<meta name="vc-version" content="2026-11-27 00:30">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -569,6 +569,7 @@ function openAddFlow(opts){
     stopScan();const local=findByBarcode(code).filter(r=>!o.fix||r.id!==o.fix.id);
     busy('Looking up '+code+'…');
     const {cands,errs}=await searchBarcode(code);
+    if(!cands.length&&!errs.length)o.myCode=code;
     showCands(cands,errs,{code,local});
   }
   async function lookupText(a,t){busy('Searching for '+[a,t].filter(Boolean).join(' — ')+'…');const {cands,errs}=await searchText(a,t);showCands(cands,errs,{a,t})}
@@ -578,8 +579,8 @@ function openAddFlow(opts){
     let head='';
     if(ctx.local&&ctx.local.length){const l=ctx.local[0];head+='<div class="notice '+(l.status==='owned'?'warn':'info')+'">'+(l.status==='owned'?'<b>You already own this:</b> ':'<b>It’s on your wishlist:</b> ')+esc(l.artist)+' — '+esc(l.title)+(l.status==='wanted'&&o.mode==='owned'?' <button class="btn small" id="fromWish">Move it from my wishlist</button>':'')+'</div>'}
     if(!cands.length){
-      results.innerHTML=head+(off?'<div class="notice err">No connection to the music catalogs right now. <button class="btn small" id="retry">Try again</button></div>':errs.length?'<div class="notice err">'+esc(errs.filter(e=>e!=='offline').join(' · '))+' <button class="btn small" id="retry">Try again</button></div>':'<div class="notice warn">'+(ctx.code?'That barcode isn’t in MusicBrainz'+(S.settings.discogs_token?' or Discogs':'')+'.':'No matches.')+' Try searching by artist and title, or add it by hand.</div>')+
-        '<div class="row">'+(ctx.code?'<button class="btn" id="toSearch">Search by artist and title</button>':'')+'<button class="btn" id="toManual">Add it by hand</button></div>';
+      results.innerHTML=head+(off?'<div class="notice err">No connection to the music catalogs right now. <button class="btn small" id="retry">Try again</button></div>':errs.length?'<div class="notice err">'+esc(errs.filter(e=>e!=='offline').join(' · '))+' <button class="btn small" id="retry">Try again</button></div>':(ctx.code?'<div class="notice warn"><b>Your barcode '+esc(ctx.code)+' isn’t in the catalogs yet.</b> Search for the album by artist and title. If none of the pressings match yours, the app uses the most recent pressing’s cover and songs and keeps your barcode.</div>':'<div class="notice warn">No matches. Check the spelling, or add it by hand.</div>'))+
+        '<div class="row">'+(ctx.code?'<button class="btn primary" id="toSearch">Search by artist and title</button>':'')+'<button class="btn" id="toManual">Add it by hand</button></div>';
       const rt=results.querySelector('#retry');if(rt)rt.onclick=()=>ctx.code?lookupBarcode(ctx.code):lookupText(ctx.a,ctx.t);
       const ts=results.querySelector('#toSearch');if(ts)ts.onclick=()=>setMode('search');
       results.querySelector('#toManual').onclick=()=>{o.prefill.barcode=ctx.code||'';o.prefill.artist=ctx.a||o.prefill.artist;o.prefill.title=ctx.t||o.prefill.title;setMode('manual')};
@@ -594,6 +595,7 @@ function openAddFlow(opts){
         (list.length>1?'<details class="help"><summary>How to tell which pressing you have</summary><ol><li><b>Catalog number</b>: printed on the spine and the label (e.g. “PCS 7088”). The bold tag on each match is the one to compare.</li><li><b>Country</b>: “Made in …” on the back or the label.</li><li><b>Label</b>: the name and design on the centre label. Reissues often use a different label.</li><li><b>Runout etching</b>: letters and numbers scratched into the shiny ring by the centre. Open a match’s page and compare its “Matrix / Runout”.</li><li>Still unsure? Use <b>Not sure, save my best guess</b> and fix it later.</li></ol></details>':'')+
         '<div class="list">'+list.map(c=>'<div><button class="cand" data-i="'+cands.indexOf(c)+'">'+sleeve(c)+'<div><span class="src">'+(c.source==='discogs'?'Discogs':'MusicBrainz')+'</span><b>'+esc(c.title)+'</b><span class="muted small">'+esc(c.artist)+'</span>'+factChips(c)+'</div></button>'+
           (safeUrl(sourceLink({source:c.source,source_id:c.id}))?'<a class="small" target="_blank" rel="noopener" href="'+esc(sourceLink({source:c.source,source_id:c.id}))+'">Full pressing details ↗</a>':'')+'</div>').join('')+'</div>'+
+        (o.mode==='owned'?'<button class="btn dark block" id="mostRecent">None of these match mine: use the most recent pressing</button><p class="small muted" style="margin-top:-6px">Takes the cover and songs from the newest pressing of this album and saves it with your barcode or catalog code.</p>':'')+
         (list.length>1&&o.mode==='owned'?'<button class="btn block" id="guess">Not sure, save my best guess</button>':'')+
         (o.mode==='wanted'?'<p class="small muted">Not fussy about the pressing? Pick any match and tick “Any pressing” on the next screen.</p>':'')+
         '<button class="btn ghost block" id="toManual2">None of these, add it by hand</button>';
@@ -601,6 +603,7 @@ function openAddFlow(opts){
       const cy=results.querySelector('#cty');if(cy)cy.onchange=e=>{country=e.target.value;draw()};
       results.querySelectorAll('.cand').forEach(b=>b.onclick=()=>pick(cands[+b.dataset.i],true));
       const g=results.querySelector('#guess');if(g)g.onclick=()=>pick(list[0],false);
+      const mr=results.querySelector('#mostRecent');if(mr)mr.onclick=()=>useMostRecent(cands,list);
       results.querySelector('#toManual2').onclick=()=>{o.prefill.barcode=ctx.code||'';setMode('manual')};
       bindFromWish();
     };
@@ -614,6 +617,42 @@ function openAddFlow(opts){
     const rec=Object.assign({},base,d,{id:base.id||uuid(),status:o.mode==='wanted'?'wanted':'owned',desire:base.desire??null,buy_url:base.buy_url??null,any_pressing:base.any_pressing??false,pressing_confirmed:confirmed,created_at:base.created_at||new Date().toISOString()});
     if(!rec.barcode&&o.prefill.barcode)rec.barcode=o.prefill.barcode;
     openSaveForm(rec,{fromWish:o.fromWish,base:o.fix});
+  }
+  /* None of the catalog pressings match: take the album's newest pressing for cover + songs, then the user's own code. */
+  async function useMostRecent(cands,list){
+    const ref=list[0]||cands[0];
+    const same=cands.filter(c=>(ref.rgid&&c.rgid===ref.rgid)||(norm(c.title)===norm(ref.title)&&norm(c.artist)===norm(ref.artist)));
+    const vinyl=c=>/vinyl|lp|"/i.test(c.format)?1:0;
+    const order=same.slice().sort((a,b)=>vinyl(b)-vinyl(a)||(b.year||0)-(a.year||0));
+    busy('Getting the cover and songs from the most recent pressing…');
+    let best=null,coverFrom=null;
+    for(const c of order.slice(0,4)){
+      let d;try{d=await fetchDetails(c)}catch(e){if(e.message==='offline'){results.innerHTML='<div class="notice err">Lost the connection. <button class="btn small" id="retry">Try again</button></div>';results.querySelector('#retry').onclick=()=>useMostRecent(cands,list);return}continue}
+      if(!best)best=d;
+      if(!coverFrom&&d.cover_url)coverFrom=d;
+      if(d.tracks&&d.tracks.length){if(!best.tracks.length)best=Object.assign({},best,{tracks:d.tracks});break}
+    }
+    if(!best){results.innerHTML='<div class="notice err">Couldn’t get details for this album. <button class="btn small" id="retry">Try again</button></div>';results.querySelector('#retry').onclick=()=>useMostRecent(cands,list);return}
+    if(!best.cover_url&&coverFrom)best=Object.assign({},best,{cover_url:coverFrom.cover_url,cover_alt_url:coverFrom.cover_alt_url});
+    if(o.myCode)return finishMostRecent(best,o.myCode);
+    stopScan();
+    results.innerHTML='<div class="card stack"><h3>Your record’s barcode or code</h3><p class="small muted">Got the cover and '+(best.tracks.length||'no')+' songs from the '+esc([best.year,best.country].filter(Boolean).join(' '))+' pressing. Scan the barcode on your record, or type its barcode or the catalog number from the spine.</p>'+scannerHTML('vid2')+
+      '<form id="fCode2" class="toolbar"><input type="text" id="mycode" placeholder="Barcode or catalog number" aria-label="Barcode or catalog number" autocapitalize="characters"><button class="btn primary">Save</button></form><button class="btn ghost block" id="skipCode">Skip, save without a code</button><p id="camMsg2" class="small muted"></p></div>';
+    startScan(results.querySelector('#vid2'),code=>finishMostRecent(best,code)).catch(e=>{const sb2=results.querySelector('.scanbox');if(sb2)sb2.classList.add('hidden');const m=results.querySelector('#camMsg2');if(m)m.textContent='Camera isn’t available here; type the code instead.'});
+    results.querySelector('#fCode2').onsubmit=e=>{e.preventDefault();const v=results.querySelector('#mycode').value.trim();if(v)finishMostRecent(best,v)};
+    results.querySelector('#skipCode').onclick=()=>finishMostRecent(best,'');
+  }
+  function finishMostRecent(d,code){
+    stopScan();
+    const base=o.fix||{};const digits=String(code||'').replace(/[\s-]/g,'');const isBarcode=/^\d{8,14}$/.test(digits);
+    const from=[d.year,d.country,d.label].filter(Boolean).join(' · ');
+    const rec=Object.assign({},base,d,{id:base.id||uuid(),status:'owned',desire:base.desire??null,buy_url:base.buy_url??null,any_pressing:base.any_pressing??false,pressing_confirmed:true,created_at:base.created_at||new Date().toISOString(),
+      barcode:isBarcode?digits:(base.barcode||null),catno:code&&!isBarcode?String(code).trim():(isBarcode?null:d.catno),
+      notes:[base.notes,'Cover and songs from the most recent catalog pressing'+(from?' ('+from+')':'')+'; my copy isn’t listed yet.'].filter(Boolean).join('\n')});
+    saveRecord(rec);closeSheet();S.focusId=rec.id;render();
+    const sp=spotOf(rec.id);
+    toast('<b>Saved.</b> '+(sp?'Shelf spot #'+sp.pos+' in '+esc(sp.section):''),6000);
+    openRecord(rec.id);
   }
   setMode(startWith==='search'?'search':'scan');
 }
