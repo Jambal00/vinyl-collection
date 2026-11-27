@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 12:05">
+<meta name="vc-version" content="2026-11-27 12:10">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -560,7 +560,7 @@ function renderAuth(step,email,msg){
     $('#back').onclick=()=>renderAuth();
     $('#fCode').onsubmit=async e=>{e.preventDefault();const token=$('#code').value.trim();const {data,error}=await sb.auth.verifyOtp({email,token,type:'email'});if(error)return renderAuth('code',email,{err:1,t:'That code didn’t work: '+error.message});S.user=data.user;afterSignIn()};
   }else{
-    $('#fEmail').onsubmit=async e=>{e.preventDefault();const em=$('#email').value.trim();LS.set('vc-email',em);if(!sb)return renderAuth('',em,{err:1,t:'Can’t reach the account service right now. Try again when you have a connection.'});const {error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:true}});if(error)return renderAuth('',em,{err:1,t:error.message});renderAuth('code',em)};
+    $('#fEmail').onsubmit=async e=>{e.preventDefault();const em=$('#email').value.trim();LS.set('vc-email',em);if(!sb)return renderAuth('',em,{err:1,t:'Can’t reach the account service right now. Try again when you have a connection.'});const {error}=await sb.auth.signInWithOtp({email:em,options:{shouldCreateUser:true,emailRedirectTo:'https://jambal00.github.io/vinyl-collection/'}});if(error)return renderAuth('',em,{err:1,t:error.message});renderAuth('code',em)};
   }
 }
 async function afterSignIn(){render();await pull()}
