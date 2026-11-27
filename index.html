@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 12:45">
+<meta name="vc-version" content="2026-11-27 13:15">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -82,6 +82,7 @@ label.chk input{width:22px;height:22px;accent-color:var(--accent)}
 .cgrp{display:flex;flex-direction:column;gap:6px}.crow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px}.crow b{font-weight:600}.crow span{color:var(--muted);text-align:right}
 .cwhen{display:flex;flex-direction:column;gap:8px}.cwhen div,.ctrk{display:flex;flex-direction:column}.cwhen span,.ctrk span{color:var(--muted);font-size:14px}.ctrk{padding:6px 0;border-bottom:1px solid var(--line)}#credTracks{display:flex;flex-direction:column}#credTracks.hidden{display:none!important}
 .trk .lyr{font-size:12px;font-weight:600;text-decoration:none;white-space:nowrap;}
+.spine .badge{display:none}
 .vlink{width:100%;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}.vlink:hover{background:#0000000a}.chev{font-size:14px;font-weight:600;white-space:nowrap;color:var(--accent-ink,inherit)}
 .vstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.vstats>div{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}.vstats b{font-size:20px}
 @media(max-width:600px){.vstats{grid-template-columns:1fr 1fr}.vstats>div:first-child{grid-column:1/-1}}
@@ -369,11 +370,14 @@ async function enrichCovers(){
 
 /* ---------- shelf order ---------- */
 const KEYS={artist:'Artist',genre:'Genre',decade:'Era (decade)',year:'Year',title:'Title',label:'Label'};
-const VARIOUS='Soundtracks & compilations';
+const VARIOUS='Various artists';
+/* Only records with no single artist (Various Artists, cast or soundtrack credits) go in their own section.
+   A greatest-hits or soundtrack album by one artist shelves under that artist. */
+const isVarious=r=>/^(various( artists)?|v\.?a\.?|soundtrack|original (motion picture )?soundtrack|original (broadway )?cast( recording)?|unknown artist)$/i.test(String(r.artist||'').trim());
 function artistKey(a,rule){let s=String(a||'').trim().toLowerCase();if(rule.ignoreThe)s=s.replace(/^(the|a|an)\s+/,'');return s.normalize('NFD').replace(/[\u0300-\u036f]/g,'')}
 const decadeOf=r=>r.year?Math.floor(r.year/10)*10+'s':'Unknown era';
 function sortParts(r,rule){
-  const various=rule.variousSection&&r.compilation;
+  const various=rule.variousSection&&isVarious(r);
   const parts=[various?1:0];
   for(const k of rule.order){
     if(k==='artist')parts.push(various?'':artistKey(r.artist,rule));
@@ -388,7 +392,7 @@ function sortParts(r,rule){
 }
 function cmpParts(a,b){for(let i=0;i<a.length;i++){if(a[i]===b[i])continue;if(typeof a[i]==='number')return a[i]-b[i];return String(a[i]).localeCompare(String(b[i]),undefined,{numeric:true})}return 0}
 function sectionOf(r,rule){
-  if(rule.variousSection&&r.compilation)return VARIOUS;
+  if(rule.variousSection&&isVarious(r))return VARIOUS;
   const k=rule.order[0];
   if(k==='genre')return (r.genres||[])[0]||'Unsorted';
   if(k==='decade')return decadeOf(r);
@@ -948,7 +952,7 @@ function openShelfRule(){
     '<div class="stack"><span class="eyebrow">Quick picks</span>'+PRE.map((p,i)=>'<button class="btn block" data-p="'+i+'" style="justify-content:flex-start">'+p[0]+'</button>').join('')+'</div>'+
     '<form id="fRule" class="stack"><span class="eyebrow">Or build your own</span>'+ord.map((k,i)=>'<div class="ruleRow"><span>'+(i+1)+'</span><select name="k'+i+'" aria-label="Sort level '+(i+1)+'">'+opts(k)+'</select></div>').join('')+
     '<label class="chk"><input type="checkbox" name="ignoreThe"'+(rule.ignoreThe?' checked':'')+'>Ignore “The”, “A” and “An” (The Beatles goes under B)</label>'+
-    '<label class="chk"><input type="checkbox" name="variousSection"'+(rule.variousSection?' checked':'')+'>Soundtracks and compilations get their own section at the end</label>'+
+    '<label class="chk"><input type="checkbox" name="variousSection"'+(rule.variousSection?' checked':'')+'>Various-artists records get their own section at the end (greatest hits by one artist stay with that artist)</label>'+
     '<button class="btn primary block">Save my shelf order</button></form>');
   sh.querySelector('#x').onclick=closeSheet;
   sh.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{PRE[+b.dataset.p][1].forEach((k,i)=>sh.querySelector('[name=k'+i+']').value=k);for(let i=PRE[+b.dataset.p][1].length;i<3;i++)sh.querySelector('[name=k'+i+']').value=''});
