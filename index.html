@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 12:20">
+<meta name="vc-version" content="2026-11-27 12:30">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -586,13 +586,12 @@ function renderCollection(){
     '<div class="filters"><select id="fg" aria-label="Genre"><option value="">All genres</option>'+genresAll().map(g=>'<option'+(g===f.genre?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select>'+
     '<select id="fd" aria-label="Era"><option value="">All eras</option>'+decadesAll().map(d=>'<option'+(d===f.decade?' selected':'')+'>'+esc(d)+'</option>').join('')+'</select>'+
     '<select id="fs" aria-label="Sort">'+[['artist','Sort: artist'],['year','Sort: year'],['recent','Sort: recently added'],['shelf','Sort: shelf order']].map(o=>'<option value="'+o[0]+'"'+(o[0]===f.sort?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'+
-    valueBarHTML()+
     (unconf?'<div class="notice warn">'+unconf+' record'+(unconf>1?'s have':' has')+' a pressing still to confirm. Look for the “Pressing?” tag.</div>':'')+
     (!list.length?'<p class="muted">Nothing matches those filters.</p>':'<div class="covers">'+list.map(r=>'<button class="tile" data-id="'+esc(r.id)+'">'+sleeve(r)+'<b>'+esc(r.title)+'</b><span>'+esc(r.artist)+(r.year?' · '+r.year:'')+'</span></button>').join('')+'</div>')+
     '</div>';
   $('#q').oninput=e=>{f.q=e.target.value;const pos=e.target.selectionStart;renderCollection();const q=$('#q');q.focus();q.setSelectionRange(pos,pos)};
   $('#fg').onchange=e=>{f.genre=e.target.value;renderCollection()};$('#fd').onchange=e=>{f.decade=e.target.value;renderCollection()};$('#fs').onchange=e=>{f.sort=e.target.value;renderCollection()};
-  view.querySelectorAll('.tile').forEach(t=>t.onclick=()=>openRecord(t.dataset.id));bindValueBar(view);bindCollSeg();
+  view.querySelectorAll('.tile').forEach(t=>t.onclick=()=>openRecord(t.dataset.id));bindCollSeg();
 }
 
 /* record detail */
@@ -612,8 +611,8 @@ function openRecord(id){
     '<div class="detail">'+sleeve(r,'lg')+'<div class="stack">'+(r.status==='owned'?spotHTML(r.id):'')+
     '<dl class="kv">'+facts(r).map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>').join('')+((r.genres||[]).length?'<dt>Genre</dt><dd>'+esc([...(r.genres||[]),...(r.styles||[])].join(', '))+'</dd>':'')+
     (r.condition_media||r.condition_sleeve?'<dt>Condition</dt><dd>Record '+esc(r.condition_media||'—')+' · Sleeve '+esc(r.condition_sleeve||'—')+'</dd>':'')+(r.bought_where?'<dt>Bought</dt><dd>'+esc(r.bought_where)+(r.price_paid!=null&&r.price_paid!==''?' · $'+esc(Number(r.price_paid).toFixed(2)):'')+'</dd>':'')+
-    valueHTML(r)+(r.notes?'<dt>Notes</dt><dd>'+esc(r.notes)+'</dd>':'')+(r.status==='wanted'&&r.desire?'<dt>Desire</dt><dd>'+esc(r.desire)+' of 10</dd>':'')+'</dl>'+(r.status==='wanted'&&safeUrl(r.buy_url)?'<a class="btn small" style="align-self:flex-start" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy it ↗</a>':'')+
-    (link?'<a href="'+esc(link)+'" target="_blank" rel="noopener">See this pressing on '+(r.source==='discogs'?'Discogs':'MusicBrainz')+' ↗</a>':'')+(r.cover_url?'<button class="btn small ghost" id="findCover2" style="align-self:flex-start;padding-left:0">Wrong or missing cover? Find the cover</button>':'')+(S.settings.discogs_token?'<button class="btn small ghost" id="chk1" data-vbtn style="align-self:flex-start;padding-left:0">'+(r.value_checked_at?'Check the '+(r.status==='owned'?'value':'price')+' again':'Check the '+(r.status==='owned'?'value':'price'))+'</button>':'')+
+    (S.tab==='value'||r.status==='wanted'?valueHTML(r):'')+(r.notes?'<dt>Notes</dt><dd>'+esc(r.notes)+'</dd>':'')+(r.status==='wanted'&&r.desire?'<dt>Desire</dt><dd>'+esc(r.desire)+' of 10</dd>':'')+'</dl>'+(r.status==='wanted'&&safeUrl(r.buy_url)?'<a class="btn small" style="align-self:flex-start" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy it ↗</a>':'')+
+    (link?'<a href="'+esc(link)+'" target="_blank" rel="noopener">See this pressing on '+(r.source==='discogs'?'Discogs':'MusicBrainz')+' ↗</a>':'')+(r.cover_url?'<button class="btn small ghost" id="findCover2" style="align-self:flex-start;padding-left:0">Wrong or missing cover? Find the cover</button>':'')+(S.settings.discogs_token&&(S.tab==='value'||r.status==='wanted')?'<button class="btn small ghost" id="chk1" data-vbtn style="align-self:flex-start;padding-left:0">'+(r.value_checked_at?'Check the '+(r.status==='owned'?'value':'price')+' again':'Check the '+(r.status==='owned'?'value':'price'))+'</button>':'')+
     '</div></div><h3>Tracklist</h3>'+tracklistHTML(r.tracks)+
     '<div class="row">'+(r.status==='wanted'?'<button class="btn primary" id="got">I got it</button>':'<button class="btn" id="shelfGo">Show on shelf</button>')+'<button class="btn" id="edit">Edit details</button><button class="btn ghost" id="del" style="color:var(--accent-ink)">Remove</button></div>');
   sh.querySelector('#x').onclick=closeSheet;
