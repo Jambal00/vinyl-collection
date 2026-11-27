@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-26 20:30">
+<meta name="vc-version" content="2026-11-26 22:45">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -96,6 +96,7 @@ label.chk input{width:22px;height:22px;accent-color:var(--accent)}
 .cand b{font:700 17px/1.15 var(--display);display:block}
 .facts{display:flex;flex-wrap:wrap;gap:4px 6px;margin-top:4px}
 .fact{font-size:12.5px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;white-space:nowrap;color:var(--muted)}
+.fact.desire{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
 .fact.key{color:var(--ink);border-color:var(--ink);font-weight:600}
 .src{font:700 10.5px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .notice{border-radius:10px;padding:12px 14px;font-size:14.5px}
@@ -189,7 +190,7 @@ function persist(){LS.set('vc-records',S.records);LS.set('vc-settings',S.setting
 function renderSync(){const el=$('#sync');if(!S.user){el.classList.add('hidden');return}el.classList.remove('hidden');
   if(S.queue.length){el.textContent=S.queue.length+' to sync';el.className='sync pending';el.title='Saved on this phone; will sync when you are back online'}
   else{el.textContent='Saved';el.className='sync';el.title='Saved to your account'}}
-const COLS=['id','status','title','artist','year','country','label','catno','barcode','format','genres','styles','cover_url','cover_alt_url','tracks','source','source_id','release_group_id','pressing_confirmed','any_pressing','gift_pick','condition_media','condition_sleeve','bought_where','price_paid','notes','compilation','created_at'];
+const COLS=['id','status','title','artist','year','country','label','catno','barcode','format','genres','styles','cover_url','cover_alt_url','tracks','source','source_id','release_group_id','pressing_confirmed','any_pressing','gift_pick','condition_media','condition_sleeve','bought_where','price_paid','notes','compilation','created_at','desire','buy_url'];
 function rowOf(r){const o={};COLS.forEach(k=>{if(r[k]!==undefined)o[k]=r[k]});if(o.price_paid==='')o.price_paid=null;return o}
 async function flush(){
   if(!sb||!S.user||!S.queue.length||!navigator.onLine)return;
@@ -216,6 +217,7 @@ async function pull(){
   if(!a.error){S.records=a.data||[]}
   if(!b.error&&b.data){S.settings={shelf_rule:b.data.shelf_rule||S.settings.shelf_rule,discogs_token:b.data.discogs_token||''}}
   persist();render();
+  enrichCovers();
 }
 window.addEventListener('online',()=>{flush().then(pull)});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')flush()});
@@ -293,6 +295,26 @@ async function fetchDetails(c){
     cover_url:img?.uri||c.thumb||null,cover_alt_url:null,compilation:(r.formats||[]).some(f=>(f.descriptions||[]).some(d=>/compilation/i.test(d)))||/^various$/i.test(artist)};
 }
 function sourceLink(r){if(r.source==='musicbrainz'&&r.source_id)return 'https://musicbrainz.org/release/'+r.source_id;if(r.source==='discogs'&&r.source_id)return 'https://www.discogs.com/release/'+r.source_id;return ''}
+
+/* ---------- covers for records added without a lookup (e.g. imported lists) ---------- */
+const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^the\s+/,'').replace(/&/g,'and').replace(/[^a-z0-9]/g,'');
+let enriching=false;
+async function enrichCovers(){
+  if(enriching||!navigator.onLine)return;enriching=true;
+  const tried=LS.get('vc-enrich-tried',{});
+  try{
+    for(const r of S.records.filter(x=>!x.cover_url&&!x.source_id&&!tried[x.id]&&x.title)){
+      tried[r.id]=1;LS.set('vc-enrich-tried',tried);
+      let res;try{res=await searchText(r.artist,r.title)}catch(e){continue}
+      const want=norm(r.title),art=norm(r.artist);
+      const hit=res.cands.find(c=>c.source==='musicbrainz'&&c.rgid&&norm(c.artist).includes(art.slice(0,6))&&(norm(c.title)===want||norm(c.title).includes(want)||want.includes(norm(c.title))));
+      if(!hit)continue;
+      const cur=S.records.find(x=>x.id===r.id);if(!cur||cur.cover_url)continue;
+      saveRecord(Object.assign({},cur,{cover_url:'https://coverartarchive.org/release-group/'+hit.rgid+'/front-500',cover_alt_url:'https://coverartarchive.org/release/'+hit.id+'/front-500',release_group_id:hit.rgid,year:cur.year||hit.year||null,compilation:cur.compilation||hit.compilation}));
+      if(['wishlist','collection'].includes(S.tab)&&!sheetRoot.firstChild)render();
+    }
+  }finally{enriching=false}
+}
 
 /* ---------- shelf order ---------- */
 const KEYS={artist:'Artist',genre:'Genre',decade:'Era (decade)',year:'Year',title:'Title',label:'Label'};
@@ -457,7 +479,7 @@ function openRecord(id){
     '<div class="detail">'+sleeve(r,'lg')+'<div class="stack">'+(r.status==='owned'?spotHTML(r.id):'')+
     '<dl class="kv">'+facts(r).map(([k,v])=>'<dt>'+esc(k)+'</dt><dd>'+esc(v)+'</dd>').join('')+((r.genres||[]).length?'<dt>Genre</dt><dd>'+esc([...(r.genres||[]),...(r.styles||[])].join(', '))+'</dd>':'')+
     (r.condition_media||r.condition_sleeve?'<dt>Condition</dt><dd>Record '+esc(r.condition_media||'—')+' · Sleeve '+esc(r.condition_sleeve||'—')+'</dd>':'')+(r.bought_where?'<dt>Bought</dt><dd>'+esc(r.bought_where)+(r.price_paid!=null&&r.price_paid!==''?' · $'+esc(Number(r.price_paid).toFixed(2)):'')+'</dd>':'')+
-    (r.notes?'<dt>Notes</dt><dd>'+esc(r.notes)+'</dd>':'')+'</dl>'+
+    (r.notes?'<dt>Notes</dt><dd>'+esc(r.notes)+'</dd>':'')+(r.status==='wanted'&&r.desire?'<dt>Desire</dt><dd>'+esc(r.desire)+' of 10</dd>':'')+'</dl>'+(r.status==='wanted'&&safeUrl(r.buy_url)?'<a class="btn small" style="align-self:flex-start" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy it ↗</a>':'')+
     (link?'<a href="'+esc(link)+'" target="_blank" rel="noopener">See this pressing on '+(r.source==='discogs'?'Discogs':'MusicBrainz')+' ↗</a>':'')+
     '</div></div><h3>Tracklist</h3>'+tracklistHTML(r.tracks)+
     '<div class="row">'+(r.status==='wanted'?'<button class="btn primary" id="got">I got it</button>':'<button class="btn" id="shelfGo">Show on shelf</button>')+'<button class="btn" id="edit">Edit details</button><button class="btn ghost" id="del" style="color:var(--accent-ink)">Remove</button></div>');
@@ -582,7 +604,7 @@ function openSaveForm(rec,opt){
        (!(rec.genres||[]).length?'<label class="f">Genre (for sorting)<input type="text" name="genre" list="genres" placeholder="e.g. Rock, Jazz, Soul"></label><datalist id="genres">'+genresAll().map(g=>'<option>'+esc(g)+'</option>').join('')+'</datalist>':''))+
     (owned?'<div class="grid2"><label class="f">Record condition<select name="condition_media">'+GRADES.map(g=>'<option'+(g===(rec.condition_media||'')?' selected':'')+'>'+g+'</option>').join('')+'</select></label><label class="f">Sleeve condition<select name="condition_sleeve">'+GRADES.map(g=>'<option'+(g===(rec.condition_sleeve||'')?' selected':'')+'>'+g+'</option>').join('')+'</select></label>'+
       '<label class="f">Where I bought it<input type="text" name="bought_where" value="'+esc(rec.bought_where||'')+'" placeholder="Store, website, gift…"></label><label class="f">What I paid ($)<input type="number" step="0.01" inputmode="decimal" name="price_paid" value="'+esc(rec.price_paid??'')+'"></label></div>'
-      :'<label class="chk"><input type="checkbox" name="any_pressing"'+(rec.any_pressing?' checked':'')+'>Any pressing is fine</label>')+
+      :'<div class="grid2"><label class="f">Desire (1–10)<select name="desire"><option value="">—</option>'+[10,9,8,7,6,5,4,3,2,1].map(n=>'<option'+(n===rec.desire?' selected':'')+'>'+n+'</option>').join('')+'</select></label><label class="f">Buy link<input type="url" name="buy_url" inputmode="url" placeholder="https://…" value="'+esc(rec.buy_url||'')+'"></label></div><label class="chk"><input type="checkbox" name="any_pressing"'+(rec.any_pressing?' checked':'')+'>Any pressing is fine</label>')+
     '<label class="chk"><input type="checkbox" name="compilation"'+(rec.compilation?' checked':'')+'>Soundtrack or compilation</label>'+
     '<label class="f">Notes<textarea name="notes" placeholder="Anything worth remembering">'+esc(rec.notes||'')+'</textarea></label>'+
     '<button class="btn primary block">'+(opt.editing?'Save changes':owned?'Save to my collection':'Save to my wishlist')+'</button></form>');
@@ -594,7 +616,7 @@ function openSaveForm(rec,opt){
     if(fd.has('genre')){const g=cap(fd.get('genre').trim());r.genres=g?[g,...(r.genres||[]).filter(x=>x!==g)].slice(0,4):(manual||opt.editing?(r.genres||[]).slice(1):r.genres||[])}
     ['condition_media','condition_sleeve','bought_where','notes'].forEach(k=>{if(fd.has(k))r[k]=fd.get(k).trim()||null});
     if(fd.has('price_paid')){const p=fd.get('price_paid');r.price_paid=p===''?null:Math.round(parseFloat(p)*100)/100}
-    r.compilation=fd.has('compilation');if(!owned)r.any_pressing=fd.has('any_pressing');
+    r.compilation=fd.has('compilation');if(!owned){r.any_pressing=fd.has('any_pressing');r.desire=parseInt(fd.get('desire'))||null;const u=(fd.get('buy_url')||'').trim();r.buy_url=/^https:\/\//.test(u)?u:null}
     r.genres=r.genres||[];r.styles=r.styles||[];r.tracks=r.tracks||[];
     saveRecord(r);closeSheet();
     if(r.status==='owned'){const s=spotOf(r.id);toast('<b>Saved.</b> '+(s?'Shelf spot #'+s.pos+' in '+esc(s.section)+(s.before&&s.after?', between '+esc(s.before.artist)+' and '+esc(s.after.artist):s.before?', after '+esc(s.before.artist):s.after?', before '+esc(s.after.artist):''):''),7000);if(!opt.editing){S.focusId=r.id;}}
@@ -607,10 +629,10 @@ function openSaveForm(rec,opt){
 /* wishlist (store mode) */
 function renderWishlist(){
   const all=S.records.filter(r=>r.status==='wanted');const q=S.wq.toLowerCase();
-  const list=all.filter(r=>!q||(r.title+' '+r.artist).toLowerCase().includes(q)).sort((a,b)=>artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true})));
+  const list=all.filter(r=>!q||(r.title+' '+r.artist).toLowerCase().includes(q)).sort((a,b)=>(b.desire||0)-(a.desire||0)||artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true})));
   view.innerHTML='<div class="stack"><div class="row" style="justify-content:space-between;align-items:baseline"><h2>Wishlist</h2><span class="muted count">'+all.length+' wanted</span></div>'+
     (all.length?'<input type="search" id="wq" placeholder="Search my wishlist" value="'+esc(S.wq)+'" aria-label="Search my wishlist"><p class="small muted">Saved on this phone too, so it opens even with no signal in the store.</p><div class="list">'+
-      list.map(r=>'<div class="store-item">'+sleeve(r)+'<div class="stack" style="gap:6px"><div><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+'</span></div><div class="small">'+(r.any_pressing?'<span class="fact key">Any pressing</span>':(r.catno||r.country||r.year?'<span class="fact key">'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · '))+'</span>':''))+'</div><div class="row"><button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button><button class="btn small" data-open="'+esc(r.id)+'">Details</button></div></div></div>').join('')+'</div>'
+      list.map(r=>'<div class="store-item">'+sleeve(r)+'<div class="stack" style="gap:6px"><div><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+'</span></div><div class="small facts" style="margin:0">'+(r.desire?'<span class="fact desire">Desire '+esc(r.desire)+'</span>':'')+(r.any_pressing?'<span class="fact key">Any pressing</span>':(r.catno||r.country||r.year?'<span class="fact key">'+esc([r.catno,r.country,r.year].filter(Boolean).join(' · '))+'</span>':''))+'</div><div class="row"><button class="btn small primary" data-got="'+esc(r.id)+'">I got it</button><button class="btn small" data-open="'+esc(r.id)+'">Details</button>'+(safeUrl(r.buy_url)?'<a class="btn small" href="'+esc(r.buy_url)+'" target="_blank" rel="noopener">Buy ↗</a>':'')+'</div></div></div>').join('')+'</div>'
       :'<div class="empty"><div class="bigdisc"></div><h2>Nothing on the hunt yet</h2><p class="muted">Add the records you’re looking for, and check them on your phone when you’re digging through the bins.</p><button class="btn dark" id="go">♡ Add a record I want</button></div>')+'</div>';
   const wq=$('#wq');if(wq)wq.oninput=e=>{S.wq=e.target.value;const p=e.target.selectionStart;renderWishlist();const n=$('#wq');n.focus();n.setSelectionRange(p,p)};
   const go=$('#go');if(go)go.onclick=()=>openAddFlow({mode:'wanted'});
