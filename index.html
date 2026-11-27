@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Vinyl Collection</title>
 <meta name="theme-color" content="#232026">
-<meta name="vc-version" content="2026-11-27 11:50">
+<meta name="vc-version" content="2026-11-27 12:05">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -76,6 +76,20 @@ label.chk input{width:22px;height:22px;accent-color:var(--accent)}
 .seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
 .seg button{border:0;background:none;min-height:40px;border-radius:9px;font-weight:600;cursor:pointer;color:var(--muted)}
 .seg button[aria-pressed="true"]{background:var(--deck);color:#fff}
+.mover{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}.mover span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mover span:last-child{white-space:nowrap}
+.vlink{width:100%;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}.vlink:hover{background:#0000000a}.chev{font-size:14px;font-weight:600;white-space:nowrap;color:var(--accent-ink,inherit)}
+.vstats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.vstats>div{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}.vstats b{font-size:20px}
+@media(max-width:600px){.vstats{grid-template-columns:1fr 1fr}.vstats>div:first-child{grid-column:1/-1}}
+.vlist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--card,#fff)}
+.lhead,.lrow,.lfoot{display:grid;grid-template-columns:48px minmax(0,1fr) 52px 96px;gap:12px;align-items:center;padding:8px 12px}
+.lhead{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--line)}.lhead span:last-child,.lv{text-align:right}
+.lrow{background:none;border:0;border-bottom:1px solid var(--line);text-align:left;cursor:pointer;font:inherit;color:inherit;width:100%}.lrow:hover{background:#0000000a}
+.lrow .sleeve{width:48px;height:48px;border-radius:4px}.lrow .sleeve .ph span{font-size:7px}.lrow .badge{display:none}
+.lt{display:flex;flex-direction:column;min-width:0}.lt b,.lt span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.lt span{font-size:13px}.lg{font-size:13px;color:var(--muted);text-align:center}
+.lv{display:flex;flex-direction:column;align-items:flex-end;font-weight:600}.lv small{font-weight:400;font-size:11px}.lv .up,.lv .down{font-size:11px;font-weight:400}
+.lfoot{grid-template-columns:1fr auto;font-size:14px;color:var(--muted)}.lfoot b{color:var(--ink,inherit);font-size:16px}
+.vseg{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden}.vseg button{border:0;background:none;padding:5px 12px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted)}.vseg button[aria-pressed=true]{background:var(--deck);color:#fff}
+@media(max-width:600px){.lhead,.lrow{grid-template-columns:44px minmax(0,1fr) 34px 70px;gap:8px;padding:8px 10px}.lrow .sleeve{width:44px;height:44px}}
 .toolbar{display:grid;grid-template-columns:1fr auto;gap:8px}#fTok{grid-template-columns:1fr auto auto}#tok.masked{-webkit-text-security:disc;text-security:disc}
 .filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 @media(max-width:520px){.filters{grid-template-columns:1fr 1fr}.filters select:last-child{grid-column:1/-1}}
@@ -442,9 +456,39 @@ async function checkValues(ids,opt={}){
 }
 function renderValueProgress(){document.querySelectorAll('[data-vprog]').forEach(el=>{el.textContent=valueRun?'Checking values… '+valueRun.done+' of '+valueRun.total:'';el.classList.toggle('hidden',!valueRun)});document.querySelectorAll('[data-vbtn]').forEach(b=>b.disabled=!!valueRun)}
 function valueBarHTML(){const v=valueSummary();
-  if(!S.settings.discogs_token&&!v.checked)return '<div class="valuebar"><div><span class="eyebrow">Collection value</span><span class="small muted">Add a free Discogs token to see what your records are worth.</span></div><button class="btn small" id="vTok">Set up</button></div>';
-  return '<div class="valuebar"><div><span class="eyebrow">Collection value</span>'+(v.valued?'<b class="vtotal">≈ '+money(Math.round(v.total))+'</b><span class="small muted">'+v.valued+' of '+v.owned+' records priced'+(v.last?' · checked '+shortDate(v.last):'')+'</span>':'<span class="small muted">Not checked yet</span>')+'<span class="small muted" data-vprog></span></div><button class="btn small" id="vChk" data-vbtn>Check values</button></div>'}
-function bindValueBar(root){const a=root.querySelector('#vChk');if(a)a.onclick=()=>checkValues();const b=root.querySelector('#vTok');if(b)b.onclick=openSettings;renderValueProgress()}
+  return '<button class="valuebar vlink" id="vGo"><div><span class="eyebrow">Collection value</span>'+(v.valued?'<b class="vtotal">≈ '+money(Math.round(v.total))+'</b><span class="small muted">'+v.valued+' of '+v.owned+' priced'+(v.last?' · '+shortDate(v.last):'')+'</span>':'<span class="small muted">'+(S.settings.discogs_token?'Not checked yet':'See what your records are worth')+'</span>')+'<span class="small muted" data-vprog></span></div><span class="chev">Explore values ›</span></button>'}
+function bindValueBar(root){const a=root.querySelector('#vGo');if(a)a.onclick=()=>setTab('value');renderValueProgress()}
+/* Value section: its own screen, opened from the collection's value box */
+function renderValue(){
+  const owned=S.records.filter(r=>r.status==='owned'),wanted=S.records.filter(r=>r.status==='wanted');const v=valueSummary();const vs=S.vsort||'value',vw=S.vwhich||'owned';
+  const paidOf=owned.filter(r=>r.value_amount!=null&&r.price_paid!=null&&r.price_paid!=='');const paid=paidOf.reduce((t,r)=>t+Number(r.price_paid),0),paidVal=paidOf.reduce((t,r)=>t+Number(r.value_amount),0);
+  const movers=owned.filter(r=>r.value_prev!=null&&r.value_amount!=null&&Math.abs(r.value_amount-r.value_prev)>=0.5).sort((a,b)=>Math.abs(b.value_amount-b.value_prev)-Math.abs(a.value_amount-a.value_prev)).slice(0,3);
+  let list=(vw==='owned'?owned:wanted).slice();
+  const ak=r=>artistKey(r.artist,{ignoreThe:true});
+  if(vs==='value')list.sort((a,b)=>(b.value_amount==null?-1:+b.value_amount)-(a.value_amount==null?-1:+a.value_amount)||ak(a).localeCompare(ak(b)));
+  else if(vs==='change')list.sort((a,b)=>Math.abs((b.value_amount??0)-(b.value_prev??b.value_amount??0))-Math.abs((a.value_amount??0)-(a.value_prev??a.value_amount??0))||ak(a).localeCompare(ak(b)));
+  else list.sort((a,b)=>ak(a).localeCompare(ak(b))||(a.year||0)-(b.year||0));
+  const noTok=!S.settings.discogs_token;
+  view.innerHTML='<div class="stack">'+
+    '<div class="row" style="justify-content:space-between;align-items:center"><button class="btn small ghost" id="vBack" style="padding-left:0">‹ Collection</button><button class="btn small" id="vChk" data-vbtn>'+(noTok?'Set up Discogs':'Check values')+'</button></div>'+
+    '<h2>Value</h2>'+
+    (noTok?'<div class="notice info">Values come from Discogs. Add your free Discogs token in Settings, then tap <b>Check values</b>.</div>':'')+
+    '<div class="vstats"><div><span class="eyebrow">Collection</span><b>'+(v.valued?'≈ '+money(Math.round(v.total)):'—')+'</b><span class="small muted">'+v.valued+' of '+v.owned+' priced</span></div>'+
+    '<div><span class="eyebrow">You paid</span><b>'+(paidOf.length?money(Math.round(paid)):'—')+'</b><span class="small muted">'+(paidOf.length?'now worth '+money(Math.round(paidVal))+' ('+paidOf.length+' record'+(paidOf.length>1?'s':'')+')':'add prices when you edit a record')+'</span></div>'+
+    '<div><span class="eyebrow">Last checked</span><b>'+(v.last?shortDate(v.last):'Never')+'</b><span class="small muted">Refreshes monthly on its own</span></div></div>'+
+    '<span class="small muted" data-vprog></span>'+
+    (movers.length?'<div class="card stack" style="gap:6px"><h3>Biggest changes</h3>'+movers.map(r=>'<div class="mover"><span>'+esc(r.artist)+' — '+esc(r.title)+'</span><span>'+money(r.value_amount)+valueTrend(r)+'</span></div>').join('')+'</div>':'')+
+    '<div class="row" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><div class="vseg" role="group" aria-label="Which records"><button data-vw="owned" aria-pressed="'+(vw==='owned')+'">Collection ('+owned.length+')</button><button data-vw="wanted" aria-pressed="'+(vw==='wanted')+'">Wishlist ('+wanted.length+')</button></div>'+
+    '<select id="vSort" aria-label="Sort" style="width:auto">'+[['value',vw==='owned'?'Highest value':'Highest price'],['change','Biggest change'],['artist','Artist']].map(o=>'<option value="'+o[0]+'"'+(o[0]===vs?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'+
+    (list.length?listHTML(list,vw):'<p class="muted">No records here yet.</p>')+
+    '<p class="small muted">From Discogs. Collection: the suggested price for each record’s grade, or the lowest listed price. Wishlist: the lowest listed price. Discogs doesn’t share actual sale prices, so this is a guide, not an appraisal.</p></div>';
+  $('#vBack').onclick=()=>setTab('collection');
+  $('#vChk').onclick=()=>noTok?openSettings():checkValues();
+  $('#vSort').onchange=e=>{S.vsort=e.target.value;renderValue()};
+  view.querySelectorAll('[data-vw]').forEach(b=>b.onclick=()=>{S.vwhich=b.dataset.vw;renderValue()});
+  view.querySelectorAll('.lrow').forEach(t=>t.onclick=()=>openRecord(t.dataset.id));
+  renderValueProgress();
+}
 function openSheet(html,onClose){
   closeSheet();const bg=document.createElement('div');bg.className='sheet-bg';bg.innerHTML='<div class="sheet" role="dialog" aria-modal="true">'+html+'</div>';
   bg.addEventListener('click',e=>{if(e.target===bg)closeSheet()});sheetRoot.appendChild(bg);sheetRoot._onClose=onClose;
@@ -497,8 +541,8 @@ function render(){
   if(GIFT_TOKEN){renderGift();return}
   if(!S.user){renderAuth();return}
   $('#tabs').classList.remove('hidden');
-  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===S.tab?'page':'false'));
-  ({collection:renderCollection,wishlist:renderWishlist,add:renderAdd,shelf:renderShelf,check:renderCheck}[S.tab]||renderCollection)();
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===(S.tab==='value'?'collection':S.tab)?'page':'false'));
+  ({collection:renderCollection,value:renderValue,wishlist:renderWishlist,add:renderAdd,shelf:renderShelf,check:renderCheck}[S.tab]||renderCollection)();
   renderSync();
 }
 
@@ -522,24 +566,29 @@ function renderAuth(step,email,msg){
 async function afterSignIn(){render();await pull()}
 
 /* collection */
+function listHTML(list,which){const wl=which==='wanted';
+  const priced=list.filter(r=>r.value_amount!=null),tot=priced.reduce((t,r)=>t+Number(r.value_amount),0);
+  return '<div class="vlist"><div class="lhead"><span></span><span>Record</span><span>'+(wl?'Desire':'Grade')+'</span><span>'+(wl?'From':'Value')+'</span></div>'+list.map(r=>'<button class="lrow" data-id="'+esc(r.id)+'">'+sleeve(r)+'<span class="lt"><b>'+esc(r.title)+'</b><span class="muted">'+esc(r.artist)+(r.year?' · '+r.year:'')+'</span></span><span class="lg">'+esc((wl?r.desire:r.condition_media)||'—')+'</span><span class="lv">'+(r.value_amount!=null?money(r.value_amount)+valueTrend(r):'<span class="muted">'+(r.value_checked_at?(r.discogs_match==='none'?'not found':'none listed'):'—')+'</span>')+(r.value_amount!=null&&r.discogs_match==='master'?'<small class="muted">any pressing</small>':'')+'</span></button>').join('')+
+    '<div class="lfoot"><span>'+priced.length+' of '+list.length+' priced'+(wl?' · cheapest copies added up':'')+'</span><b>'+money(Math.round(tot*100)/100)+'</b></div></div>'}
 function renderCollection(){
   const f=S.filters;const owned=S.records.filter(r=>r.status==='owned');
   if(!owned.length){view.innerHTML='<div class="empty"><div class="bigdisc"></div><h2>Start with the first record</h2><p class="muted">Scan the barcode on the back, or search by artist and title.</p><button class="btn primary" id="go">+ Add a record</button></div>';$('#go').onclick=()=>setTab('add');return}
   let list=owned.filter(r=>(!f.genre||(r.genres||[]).includes(f.genre))&&(!f.decade||decadeOf(r)===f.decade)&&(!f.q||(r.title+' '+r.artist+' '+(r.label||'')).toLowerCase().includes(f.q.toLowerCase())));
   if(f.sort==='shelf'){const sh=shelf();list.sort((a,b)=>sh.indexOf(a)-sh.indexOf(b))}
   else if(f.sort==='year')list.sort((a,b)=>(a.year||9999)-(b.year||9999)||artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true})));
+  else if(false)list.sort((a,b)=>(b.value_amount==null?-1:Number(b.value_amount))-(a.value_amount==null?-1:Number(a.value_amount))||artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true})));
   else if(f.sort==='recent')list.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at)));
   else list.sort((a,b)=>artistKey(a.artist,{ignoreThe:true}).localeCompare(artistKey(b.artist,{ignoreThe:true}))||(a.year||0)-(b.year||0));
   const unconf=owned.filter(r=>r.pressing_confirmed===false).length;
   view.innerHTML='<div class="stack">'+
-    '<div class="row" style="justify-content:space-between;align-items:baseline"><h2>Collection</h2><span class="muted count">'+list.length+(list.length!==owned.length?' of '+owned.length:'')+' records</span></div>'+
+    '<div class="row" style="justify-content:space-between;align-items:center"><h2>Collection</h2><span class="muted count">'+list.length+(list.length!==owned.length?' of '+owned.length:'')+' records</span></div>'+
     '<input type="search" id="q" placeholder="Search artist, title or label" value="'+esc(f.q)+'" aria-label="Search the collection">'+
     '<div class="filters"><select id="fg" aria-label="Genre"><option value="">All genres</option>'+genresAll().map(g=>'<option'+(g===f.genre?' selected':'')+'>'+esc(g)+'</option>').join('')+'</select>'+
     '<select id="fd" aria-label="Era"><option value="">All eras</option>'+decadesAll().map(d=>'<option'+(d===f.decade?' selected':'')+'>'+esc(d)+'</option>').join('')+'</select>'+
     '<select id="fs" aria-label="Sort">'+[['artist','Sort: artist'],['year','Sort: year'],['recent','Sort: recently added'],['shelf','Sort: shelf order']].map(o=>'<option value="'+o[0]+'"'+(o[0]===f.sort?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>'+
     valueBarHTML()+
     (unconf?'<div class="notice warn">'+unconf+' record'+(unconf>1?'s have':' has')+' a pressing still to confirm. Look for the “Pressing?” tag.</div>':'')+
-    (list.length?'<div class="covers">'+list.map(r=>'<button class="tile" data-id="'+esc(r.id)+'">'+sleeve(r)+'<b>'+esc(r.title)+'</b><span>'+esc(r.artist)+(r.year?' · '+r.year:'')+'</span></button>').join('')+'</div>':'<p class="muted">Nothing matches those filters.</p>')+
+    (!list.length?'<p class="muted">Nothing matches those filters.</p>':'<div class="covers">'+list.map(r=>'<button class="tile" data-id="'+esc(r.id)+'">'+sleeve(r)+'<b>'+esc(r.title)+'</b><span>'+esc(r.artist)+(r.year?' · '+r.year:'')+'</span></button>').join('')+'</div>')+
     '</div>';
   $('#q').oninput=e=>{f.q=e.target.value;const pos=e.target.selectionStart;renderCollection();const q=$('#q');q.focus();q.setSelectionRange(pos,pos)};
   $('#fg').onchange=e=>{f.genre=e.target.value;renderCollection()};$('#fd').onchange=e=>{f.decade=e.target.value;renderCollection()};$('#fs').onchange=e=>{f.sort=e.target.value;renderCollection()};
@@ -827,7 +876,7 @@ function openSettings(){
     '<div class="card stack"><h3>Discogs</h3><p class="small muted">Optional. When MusicBrainz can’t find a record, the app tries Discogs. The token also turns on record values. Get a free token at discogs.com → Settings → Developers → Generate new token, then paste it here. It’s stored in your account only.</p>'+
     '<form id="fTok" class="toolbar"><input type="text" class="masked" id="tok" name="vc-discogs-key" autocomplete="off" data-1p-ignore data-lpignore="true" data-form-type="other" spellcheck="false" autocapitalize="off" placeholder="Paste your Discogs token" value="'+esc(S.settings.discogs_token||'')+'" aria-label="Discogs token"><button type="button" class="btn" id="tokShow">Show</button><button class="btn dark">Save</button></form><p class="small" id="tokMsg" role="status">'+(S.settings.discogs_token?'<span class="muted">Token saved. Tap Save to test it again.</span>':'')+'</p></div>'+
     '<div class="card stack"><h3>Value</h3>'+(()=>{const v=valueSummary();return v.valued?'<p><b>≈ '+money(Math.round(v.total))+'</b> for '+v.valued+' of '+v.owned+' records'+(v.paid?' <span class="muted small">(you paid '+money(Math.round(v.paid))+' for the ones with a price)</span>':'')+'</p>':'<p class="small muted">Not checked yet.</p>'})()+
-    '<p class="small muted">From Discogs: the suggested price for each record’s condition grade, or the lowest listed price when there’s no grade or suggestion. Wishlist records show the lowest listed price. Values refresh by themselves about once a month; Discogs doesn’t share actual sale prices, so treat this as a guide, not an appraisal.</p><span class="small muted" data-vprog></span><button class="btn small" id="vChk2" data-vbtn style="align-self:flex-start">Check values now</button></div>'+
+    '<p class="small muted">From Discogs: the suggested price for each record’s condition grade, or the lowest listed price when there’s no grade or suggestion. Wishlist records show the lowest listed price. Values refresh by themselves about once a month; Discogs doesn’t share actual sale prices, so treat this as a guide, not an appraisal.</p><span class="small muted" data-vprog></span><div class="row"><button class="btn small" id="vChk2" data-vbtn>Check values now</button><button class="btn small" id="vGo2">Explore values</button></div></div>'+
     '<div class="card stack"><h3>Gift &amp; share links</h3><p class="small muted">Send family your top 10 with buy links, or let friends browse your records.</p><button class="btn small" id="share2" style="align-self:flex-start">Manage share links</button></div>'+'<div class="card stack"><h3>Shelf order</h3><p>'+esc(ruleText(S.settings.shelf_rule))+'</p><button class="btn small" id="rule" style="align-self:flex-start">Change</button></div>'+
     '<div class="card stack"><h3>Backup</h3><p class="small muted">'+owned+' in the collection, '+wanted+' on the wishlist.</p><button class="btn small" id="exp" style="align-self:flex-start">Download a copy (CSV)</button></div>'+
     '<div class="card stack"><h3>Account</h3><p class="small">Signed in as <b>'+esc(S.user?.email||'')+'</b></p><p class="small muted">App version '+esc(APP_VERSION)+'</p><button class="btn small" id="out" style="align-self:flex-start">Sign out</button></div>');
@@ -842,6 +891,7 @@ function openSettings(){
     else if(t.reason==='bad'){msg.innerHTML='<span class="down">Discogs didn’t accept that token, so it wasn’t saved. Copy it again from discogs.com/settings/developers.</span>'}
     else{S.settings.discogs_token=v;saveSettings();msg.innerHTML='<span class="muted">Saved, but couldn’t reach Discogs to test it. Try Save again when you’re online.</span>'}};
   sh.querySelector('#share2').onclick=openShare;
+  sh.querySelector('#vGo2').onclick=()=>{closeSheet();setTab('value')};
   sh.querySelector('#vChk2').onclick=()=>checkValues(null,{after:()=>{closeSheet();openSettings()}});renderValueProgress();
   sh.querySelector('#rule').onclick=openShelfRule;
   sh.querySelector('#exp').onclick=()=>{
